@@ -1,4 +1,4 @@
-public class exercise_1a {
+public class exercise1a {
     public static boolean isPrime(int n) {
         for (int divisor = 2; divisor < n; divisor++) {
             if (n % divisor == 0) {
