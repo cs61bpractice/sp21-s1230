@@ -26,4 +26,64 @@ public class Repository {
     public static final File GITLET_DIR = join(CWD, ".gitlet");
 
     /* TODO: fill in the rest of this class. */
+
+    public static void initiateGitlet() {
+
+    }
+
+    public static void addToStage(String fileName) {
+
+    }
+
+    public static void commitFiles(String commitMsg) {
+
+    }
+
+    public static void removeFile(String fileName) {
+
+    }
+
+    public static void displayLog() {
+
+    }
+
+    public static void displayGlobalLog() {
+
+    }
+
+    public static void findCommitsWithMsg(String commitMsg) {
+
+    }
+
+    public static void displayStatus() {
+
+    }
+
+    public static void checkoutToFile(String fileName) {
+
+    }
+
+    public static void checkoutToCommitsFile(String commitID, String fileName) {
+
+    }
+
+    public static void checkoutToBranch(String branchName) {
+
+    }
+
+    public static void createNewBranch(String branchName) {
+
+    }
+
+    public static void removeBranch(String branchName) {
+
+    }
+
+    public static void resetToCommit(String commitID) {
+
+    }
+
+    public static void mergeToBranch(String branchName) {
+
+    }
 }
