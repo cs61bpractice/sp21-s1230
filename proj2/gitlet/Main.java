@@ -32,7 +32,7 @@ public class Main {
             case "commit":
                 // TODO
                 validateNumArgs("commit", args, 2);
-                Repository.commitFiles(args[1]);
+                Repository.newCommit(args[1]);
                 break;
             case "rm":
                 // TODO
