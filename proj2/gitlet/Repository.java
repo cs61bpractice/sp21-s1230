@@ -80,6 +80,7 @@ public class Repository {
 
     private static void initCommit() {
         currCommit = new Commit();
+        currCommit.saveCommit();
     }
 
     private static void initHEAD() {
@@ -96,24 +97,25 @@ public class Repository {
     }
 
     public static void addToStage(String fileName) {
-        File f_to_add = join(CWD, fileName);
-        if (!f_to_add.exists()) {
+        File f = join(CWD, fileName);
+        if (!f.exists()) {
             throw new GitletException("File does not exist.");
         }
 
-        Blob b = new Blob(f_to_add);
+        Blob b = new Blob(f);
         Index stagedArea = readObject(index, Index.class);
         HashMap<String, String> commitFileMap = currCommit.getBlobs();
-        if (commitFileMap.containsKey(b.getPath()) && commitFileMap.get(b.getPath()).equals(b.getID())) {
-            if (stagedArea.stagedToAddFiles.containsKey(b.getPath())) {
-                stagedArea.stagedToAddFiles.remove(b.getPath());
+        if (commitFileMap.containsKey(b.getFilePath()) && commitFileMap.get(b.getFilePath()).equals(b.getID())) {
+            if (stagedArea.stagedToAddFiles.containsKey(b.getFilePath())) {
+                stagedArea.stagedToAddFiles.remove(b.getFilePath());
             }
         } else {
-            if (stagedArea.stagedToRemoveFiles.containsKey(b.getPath())) {
-                stagedArea.stagedToRemoveFiles.remove(b.getPath());
+            if (stagedArea.stagedToRemoveFiles.containsKey(b.getFilePath())) {
+                stagedArea.stagedToRemoveFiles.remove(b.getFilePath());
             }
             stagedArea.addFile(b);
         }
+        stagedArea.saveIndex();
     }
 
     public static void newCommit(String commitMsg) {
@@ -126,19 +128,19 @@ public class Repository {
             throw new GitletException("Please enter a commit message.");
         }
 
-        Commit c = new Commit(commitMsg, getParents(), getblobs());
-        c.saveCommit();
+        currCommit = new Commit(commitMsg, CalculateParents(), calculateBlobs());
+        currCommit.saveCommit();
         initOrUpdateHeads();
         clearStagedArea();
     }
 
-    private static List<String> getParents() {
+    private static List<String> CalculateParents() {
         List<String> parents = new ArrayList<>();
         parents.add(currCommit.getCommitID());
         return parents;
     }
 
-    private static HashMap<String, String> getblobs() {
+    private static HashMap<String, String> calculateBlobs() {
         HashMap<String, String> blobs = currCommit.getBlobs();
         Index stagedArea = readObject(Repository.index, Index.class); // get index file
         for (String i: stagedArea.stagedToAddFiles.keySet()) {
@@ -157,7 +159,15 @@ public class Repository {
     }
 
     public static void removeFile(String fileName) {
+        File f = join(CWD, fileName);
+        Index stagedArea = readObject(index, Index.class);
 
+        if (stagedArea.stagedToAddFiles.containsKey(f.getPath())) {
+            stagedArea.stagedToAddFiles.remove(f.getPath());
+        } else if (currCommit.getBlobs().containsKey(f.getPath())) {
+            Blob b = readObject(myUtils.getObjectFilebyID(currCommit.getBlobs().get(f.getPath())), Blob.class);
+            stagedArea.removeFile(b);
+        } else {throw new GitletException("No reason to remove the file."); }
     }
 
     public static void displayLog() {

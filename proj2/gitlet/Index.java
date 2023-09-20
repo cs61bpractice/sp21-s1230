@@ -32,11 +32,12 @@ public class Index implements Serializable {
     /* TODO: fill in the rest of this class. */
 
     public void addFile(Blob b) {
-        stagedToAddFiles.put(b.getPath(), b.getID());
+        stagedToAddFiles.put(b.getFilePath(), b.getID());
     }
 
-    public void removeExistingFilefromStagedFiles(String filePath, HashMap<String, String> stagedMap) {
-        stagedMap.remove(filePath);
+    public void removeFile(Blob b) {
+        restrictedDelete(b.getFileInCWD());
+        stagedToRemoveFiles.put(b.getFilePath(), b.getID());
     }
 
     // save the index by serialization to index file in .gitlet

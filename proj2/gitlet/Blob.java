@@ -28,9 +28,11 @@ public class Blob implements Serializable {
         return blobID;
     }
 
-    public String getPath() {
+    public String getFilePath() {
         return filePath;
     }
+
+    public File getFileInCWD() { return fileInCWD; }
 
     public void saveBlob(File f) {
         File outFile = getObjectFilebyID(blobID);
