@@ -171,7 +171,8 @@ public class Repository {
     }
 
     public static void displayLog() {
-
+        List<String> firstParents = currCommit.getParents();
+        while ()
     }
 
     public static void displayGlobalLog() {
