@@ -60,24 +60,28 @@ public class Commit implements Serializable {
 
     public Commit(String commitMsg, List<String> parents, HashMap<String, String> blobs) {
         this.commitMsg = commitMsg;
-        this.commitTime = getCommitTime();
+        this.commitTime = generateCommitTime();
         this.parents = parents;
         this.blobs = blobs;
         this.commitID = generateCommitID();
     }
 
-    private String getCommitTime() {
+    private String generateCommitTime() {
         String pattern = "EEE MMM d HH:mm:ss yyyy Z";
         DateFormat df = new SimpleDateFormat(pattern, Locale.US);
         return df.format(new Date());
     }
 
-    public List<String> getParents() {
-        return parents;
+    public String getCommitTime() {
+        return commitTime;
     }
 
-    public String getFilePath() {
-        return commitF.getPath();
+    public String getCommitMsg() {
+        return commitMsg;
+    }
+
+    public List<String> getParents() {
+        return parents;
     }
 
     public HashMap<String, String> getBlobs() { return blobs;}
@@ -93,9 +97,6 @@ public class Commit implements Serializable {
     public void saveCommit() {
         File outFile = getObjectFilebyID(commitID);
         writeObject(outFile, this);
-    }
-    public void clearStagingArea () {
-        blobs.clear();
     }
 
 

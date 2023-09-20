@@ -172,7 +172,16 @@ public class Repository {
 
     public static void displayLog() {
         List<String> firstParents = currCommit.getParents();
-        while ()
+        Commit commitToDisplay = currCommit;
+        while (commitToDisplay != null) {
+            System.out.println("===");
+            System.out.printf("Commit: %s%n", commitToDisplay.getCommitID());
+            System.out.printf("Date: %s%n", commitToDisplay.getCommitTime());
+            System.out.printf(commitToDisplay.getCommitMsg());
+            System.out.println();
+            if (firstParents.isEmpty()) {commitToDisplay = null; }
+            else {commitToDisplay = getObjectbyID(currCommit.getParents().get(0), Commit.class);}
+        }
     }
 
     public static void displayGlobalLog() {
