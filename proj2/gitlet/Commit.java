@@ -4,16 +4,16 @@ package gitlet;
 
 import java.io.File;
 import java.io.Serializable;
-import java.util.ArrayList;import static gitlet.myUtils.*;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
-import gitlet.Utils.*;
-
-import static gitlet.Repository.HEADS_DIR;
+import static gitlet.Repository.*;
 import static gitlet.Utils.*;
 import static gitlet.myUtils.*;
+import gitlet.Blob.*;
+import gitlet.Index.*;
 
 
 /** Represents a gitlet commit object.
@@ -51,20 +51,24 @@ public class Commit implements Serializable {
      * // commitTime: time of the new commit
      * // files: the files' ID that this commit is tracking
      */
-    public Commit(String commitMsg) {
+    public Commit() {
         this.commitMsg = commitMsg;
         this.commitTime = getCommitTime();
         this.parents = new ArrayList<>();
-        this.blobs = getPreviousBlobsMap();
+        this.blobs = new HashMap<>();
+        this.commitID = generateCommitID();
+    }
+
+    public Commit(String commitMsg, List<String> parents, HashMap<String, String> blobs) {
+        this.commitMsg = commitMsg;
+        this.commitTime = getCommitTime();
+        this.parents = parents;
+        this.blobs = blobs;
+        this.commitID = generateCommitID();
     }
 
     private Date getCommitTime() {
         return new Date();
-    }
-
-    public void addParent(File f) {
-        // return ID reference for parent commit
-        parents.add(readContentsAsString(f));
     }
 
     public List<String> getParents() {
@@ -75,46 +79,21 @@ public class Commit implements Serializable {
         return commitF.getPath();
     }
 
-    private HashMap<String, String> getPreviousBlobsMap() {
-        if (Repository.HEAD.exists()) {
-            String currentCommitID = readContentsAsString(Repository.HEAD); // == parents.get(0)
-            File currentCommitFile = getObjectFilebyID(currentCommitID);
-            Commit currentCommit = readObject(currentCommitFile, Commit.class);
-            return currentCommit.getBlobs();
-        } else {return new HashMap<>(); }
-    }
+    public HashMap<String, String> getBlobs() { return blobs;}
 
-    // update files for only one parent
-    public void updateBlobsReferences() {
-        Index stagingArea = readObject(Repository.index, Index.class); // get index file
-        for (String i: stagingArea.stagedFiles.keySet()) {
-            blobs.put(i, stagingArea.stagedFiles.get(i)); // update + add if any changes in staged
-        }
-    }
-
-    public HashMap<String, String> getBlobs() {
-        return blobs;
-    }
-
-    public void generateCommitIDAndWriteIn() {
-        commitID = sha1(this);
+    public String generateCommitID() {
+        return sha1(commitMsg, commitTime, parents.toString(), blobs.toString());
     }
 
     public String getCommitID() {
         return commitID;
     }
 
-    public void saveHEAD() {
-        // save most current commit to head
-        writeContents(Repository.HEAD, commitID);
+    public void saveCommit() {
+        File outFile = getObjectFilebyID(commitID);
+        writeObject(outFile, this);
     }
-
-    public void saveBranchHead(String branchName) {
-        File branchHead = new File(HEADS_DIR, branchName);
-        writeContents(branchHead, commitID);
-    }
-
-    private void clearStagingArea () {
+    public void clearStagingArea () {
         blobs.clear();
     }
 

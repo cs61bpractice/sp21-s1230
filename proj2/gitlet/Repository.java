@@ -1,12 +1,20 @@
 package gitlet;
 
 import java.io.File;
+import java.lang.reflect.Array;
 import java.nio.file.Files;
+import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+// TODO: any imports you need here
 
 import static gitlet.Utils.*;
 import static gitlet.myUtils.*;
-
-// TODO: any imports you need here
+import gitlet.Blob.*;
+import gitlet.Commit.*;
+import gitlet.Index.*;
 
 /** Represents a gitlet repository.
  *  TODO: It's a good idea to give a description here of what else this Class
@@ -47,6 +55,7 @@ public class Repository {
     public static final File HEAD = new File(GITLET_DIR, "HEAD");
     // index file storing staging area
     public static final File index = new File(GITLET_DIR, "index");
+    public static Commit currCommit;
 
     /* TODO: fill in the rest of this class. */
 
@@ -59,37 +68,92 @@ public class Repository {
 
     public static void initiateGitlet() {
         if (GITLET_DIR.exists()) {
-            throw new RuntimeException(
+            throw new GitletException(
                     "A Gitlet version-control system already exists in the current directory"
             );
         }
         setupPersistence();
-        newCommit("initial commit");
+        initCommit();
+        initHEAD();
+        initOrUpdateHeads();
+    }
+
+    private static void initCommit() {
+        currCommit = new Commit();
+    }
+
+    private static void initHEAD() {
+        writeContents(HEAD, "master");
+    }
+
+    private static void initOrUpdateHeads() {
+        File branchHead = new File(HEADS_DIR, getCurrBranch());
+        writeContents(branchHead, currCommit.getCommitID());
+    }
+
+    private static String getCurrBranch() {
+        return readContentsAsString(HEAD);
     }
 
     public static void addToStage(String fileName) {
+        File f_to_add = join(CWD, fileName);
+        if (!f_to_add.exists()) {
+            throw new GitletException("File does not exist.");
+        }
 
+        Blob b = new Blob(f_to_add);
+        Index stagedArea = readObject(index, Index.class);
+        HashMap<String, String> commitFileMap = currCommit.getBlobs();
+        if (commitFileMap.containsKey(b.getPath()) && commitFileMap.get(b.getPath()).equals(b.getID())) {
+            if (stagedArea.stagedToAddFiles.containsKey(b.getPath())) {
+                stagedArea.stagedToAddFiles.remove(b.getPath());
+            }
+        } else {
+            if (stagedArea.stagedToRemoveFiles.containsKey(b.getPath())) {
+                stagedArea.stagedToRemoveFiles.remove(b.getPath());
+            }
+            stagedArea.addFile(b);
+        }
     }
 
     public static void newCommit(String commitMsg) {
 
         // abort if the staging area is clear
         if (index.exists() || index.length() == 0) {
-            throw new RuntimeException(
-                    "No changes added to the commit."
-            );
+            throw new GitletException("No changes added to the commit.");
         } else if (commitMsg.isEmpty()) {
             // abort if the commit msg is blank
-            throw new RuntimeException(
-                    "Please enter a commit message."
-            );
+            throw new GitletException("Please enter a commit message.");
         }
 
-        Commit c = new Commit(commitMsg);
-        c.addParent(Repository.HEAD);
-        c.generateCommitIDAndWriteIn();
-        c.saveHEAD();
-        c.saveBranchHead("master");
+        Commit c = new Commit(commitMsg, getParents(), getblobs());
+        c.saveCommit();
+        initOrUpdateHeads();
+        clearStagedArea();
+    }
+
+    private static List<String> getParents() {
+        List<String> parents = new ArrayList<>();
+        parents.add(currCommit.getCommitID());
+        return parents;
+    }
+
+    private static HashMap<String, String> getblobs() {
+        HashMap<String, String> blobs = currCommit.getBlobs();
+        Index stagedArea = readObject(Repository.index, Index.class); // get index file
+        for (String i: stagedArea.stagedToAddFiles.keySet()) {
+            blobs.put(i, stagedArea.stagedToAddFiles.get(i)); // update + add if any changes in staged
+        }
+        for (String j: stagedArea.stagedToRemoveFiles.keySet()) {
+            blobs.remove(j); // remove files which are staged
+        }
+        return blobs;
+    }
+
+    private static void clearStagedArea() {
+        Index stagedArea = readObject(Repository.index, Index.class);
+        stagedArea.clearStagingArea();
+        stagedArea.saveIndex();
     }
 
     public static void removeFile(String fileName) {

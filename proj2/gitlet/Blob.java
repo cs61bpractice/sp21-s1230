@@ -18,23 +18,21 @@ public class Blob implements Serializable {
 
     public Blob(File f) {
         this.fileInCWD = f;
-        this.filecontent = getContent();
-        this.filePath = getpath();
-        this.blobID = getID();
+        this.filecontent = readContents(fileInCWD);
+        this.filePath = fileInCWD.getPath();
+        this.blobID = sha1(filecontent);
     }
 
-    private byte[] getContent() {
-        return readContents(fileInCWD);
-    }
-    private String getID() {
-        return sha1(filecontent);
+    public byte[] getContent() {return filecontent; }
+    public String getID() {
+        return blobID;
     }
 
-    private String getpath() {
-        return fileInCWD.getPath();
+    public String getPath() {
+        return filePath;
     }
 
-    public void saveBlobtoObjects(File f) {
+    public void saveBlob(File f) {
         File outFile = getObjectFilebyID(blobID);
         writeObject(outFile, this);
     }

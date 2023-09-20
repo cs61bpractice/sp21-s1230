@@ -7,6 +7,8 @@ import java.util.HashMap;
 import static gitlet.Repository.*;
 import static gitlet.Utils.*;
 import static gitlet.myUtils.*;
+import gitlet.Blob.*;
+import gitlet.Commit.*;
 
 /** Represents a gitlet index / staging area.
  *  TODO: It's a good idea to give a description here of what else this Class
@@ -24,19 +26,28 @@ public class Index implements Serializable {
      */
 
     // a map from filepath to its file/blob ID
-    public HashMap<String, String> stagedFiles;
+    public HashMap<String, String> stagedToAddFiles;
+    public HashMap<String, String> stagedToRemoveFiles;
 
     /* TODO: fill in the rest of this class. */
 
-    public void addFile (File f) {
-        String filePath = f.getPath();
-        stagedFiles.put(filePath, sha1(f));
+    public void addFile(Blob b) {
+        stagedToAddFiles.put(b.getPath(), b.getID());
+    }
+
+    public void removeExistingFilefromStagedFiles(String filePath, HashMap<String, String> stagedMap) {
+        stagedMap.remove(filePath);
     }
 
     // save the index by serialization to index file in .gitlet
     public void saveIndex() {
         File outFile = Utils.join(GITLET_DIR, "index");
         writeObject(outFile, this);
+    }
+
+    public void clearStagingArea () {
+        stagedToAddFiles.clear();
+        stagedToRemoveFiles.clear();
     }
 
 
