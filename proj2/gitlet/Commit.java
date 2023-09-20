@@ -4,10 +4,9 @@ package gitlet;
 
 import java.io.File;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 import static gitlet.Repository.*;
 import static gitlet.Utils.*;
@@ -34,7 +33,7 @@ public class Commit implements Serializable {
     // The message of this Commit.
     private String commitMsg;
     // commit time
-    private Date commitTime;
+    private String commitTime;
     // first parent's SHA1 ID - reference to the blob
     private List<String> parents;
     // a map from filepath to its file/blob ID
@@ -47,12 +46,12 @@ public class Commit implements Serializable {
 
     /**
      * Creates a dog object with the specified parameters.
-     * @param commitMsg commit message
+     * @param// commitMsg commit message
      * // commitTime: time of the new commit
      * // files: the files' ID that this commit is tracking
      */
     public Commit() {
-        this.commitMsg = commitMsg;
+        this.commitMsg = "initial commit";
         this.commitTime = getCommitTime();
         this.parents = new ArrayList<>();
         this.blobs = new HashMap<>();
@@ -67,8 +66,10 @@ public class Commit implements Serializable {
         this.commitID = generateCommitID();
     }
 
-    private Date getCommitTime() {
-        return new Date();
+    private String getCommitTime() {
+        String pattern = "EEE MMM d HH:mm:ss yyyy Z";
+        DateFormat df = new SimpleDateFormat(pattern, Locale.US);
+        return df.format(new Date());
     }
 
     public List<String> getParents() {
@@ -82,7 +83,7 @@ public class Commit implements Serializable {
     public HashMap<String, String> getBlobs() { return blobs;}
 
     public String generateCommitID() {
-        return sha1(commitMsg, commitTime, parents.toString(), blobs.toString());
+        return Utils.sha1(commitMsg, commitTime, parents.toString(), blobs.toString());
     }
 
     public String getCommitID() {
