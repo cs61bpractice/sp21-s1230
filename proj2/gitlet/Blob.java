@@ -34,7 +34,7 @@ public class Blob implements Serializable {
 
     public File getFileInCWD() { return fileInCWD; }
 
-    public void saveBlob(File f) {
+    public void saveBlob() {
         File outFile = getObjectFilebyID(blobID);
         writeObject(outFile, this);
     }

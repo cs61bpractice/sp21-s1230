@@ -52,7 +52,7 @@ public class Commit implements Serializable {
      */
     public Commit() {
         this.commitMsg = "initial commit";
-        this.commitTime = getCommitTime();
+        this.commitTime = generateCommitTime();
         this.parents = new ArrayList<>();
         this.blobs = new HashMap<>();
         this.commitID = generateCommitID();

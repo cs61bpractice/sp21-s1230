@@ -1,5 +1,8 @@
 package gitlet;
 
+import javax.net.ssl.SSLServerSocket;
+import static gitlet.Repository.*;
+
 /** Driver class for Gitlet, a subset of the Git version-control system.
  *  @author TODO
  */
@@ -22,6 +25,8 @@ public class Main {
                 // TODO: handle the `init` command
                 validateNumArgs("init", args, 1);
                 Repository.initiateGitlet();
+                //System.out.println(currCommit.getCommitMsg()); // own test
+                // System.out.println(currCommit.getBlobs());
                 break;
             case "add":
                 // TODO: handle the `add [filename]` command
@@ -62,7 +67,7 @@ public class Main {
             case "checkout":
                 // TODO
                 if ((args.length == 3 && !args[1].equals("--"))
-                        || (args.length == 4 && args[2].equals("--"))){
+                        || (args.length == 4 && !args[2].equals("--"))){
                     validateNumArgs("checkout", args, 2);
                 }
                 if (args.length == 3) {

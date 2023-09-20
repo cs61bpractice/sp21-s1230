@@ -26,8 +26,8 @@ public class Index implements Serializable {
      */
 
     // a map from filepath to its file/blob ID
-    public HashMap<String, String> stagedToAddFiles;
-    public HashMap<String, String> stagedToRemoveFiles;
+    public HashMap<String, String> stagedToAddFiles = new HashMap<>();
+    public HashMap<String, String> stagedToRemoveFiles = new HashMap<>();
 
     /* TODO: fill in the rest of this class. */
 

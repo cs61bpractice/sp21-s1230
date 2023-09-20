@@ -15,7 +15,7 @@ class myUtils {
 
     public static <T extends Serializable> T getObjectbyID(String ID, Class<T> expectedClass) {
         File f = getObjectFilebyID(ID);
-        return readObject(f, expectedClass);
+        return readObject(f, expectedClass); // makesure the file exists
     }
 
 }

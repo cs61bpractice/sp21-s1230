@@ -73,27 +73,40 @@ public class Repository {
             );
         }
         setupPersistence();
-        initCommit();
+        Commit currCommit = initCommit();
+        currCommit.saveCommit();
         initHEAD();
-        initOrUpdateHeads();
+        initOrUpdateHeads(currCommit);
+        initIndex();
     }
 
-    private static void initCommit() {
+    private static Commit initCommit() {
         currCommit = new Commit();
-        currCommit.saveCommit();
+        return currCommit;
     }
 
     private static void initHEAD() {
         writeContents(HEAD, "master");
     }
 
-    private static void initOrUpdateHeads() {
+    private static void initOrUpdateHeads(Commit currCommit) {
         File branchHead = new File(HEADS_DIR, getCurrBranch());
         writeContents(branchHead, currCommit.getCommitID());
     }
 
+    private static void initIndex() {
+        writeObject(index, new Index());
+    }
+
     private static String getCurrBranch() {
         return readContentsAsString(HEAD);
+    }
+
+    private static String getCurrCommitID() {
+        return readContentsAsString(join(HEADS_DIR, getCurrBranch()));
+    }
+    private static Commit getCurrCommit() {
+        return getObjectbyID(getCurrCommitID(), Commit.class);
     }
 
     public static void addToStage(String fileName) {
@@ -103,8 +116,9 @@ public class Repository {
         }
 
         Blob b = new Blob(f);
+        b.saveBlob();
         Index stagedArea = readObject(index, Index.class);
-        HashMap<String, String> commitFileMap = currCommit.getBlobs();
+        HashMap<String, String> commitFileMap = getCurrCommit().getBlobs();
         if (commitFileMap.containsKey(b.getFilePath()) && commitFileMap.get(b.getFilePath()).equals(b.getID())) {
             if (stagedArea.stagedToAddFiles.containsKey(b.getFilePath())) {
                 stagedArea.stagedToAddFiles.remove(b.getFilePath());
@@ -116,33 +130,39 @@ public class Repository {
             stagedArea.addFile(b);
         }
         stagedArea.saveIndex();
+        // own test
+//        Index test1 = readObject(index, Index.class);
+//        System.out.println(test1.stagedToAddFiles);
+//        System.out.println(test1.stagedToRemoveFiles);
     }
 
     public static void newCommit(String commitMsg) {
 
         // abort if the staging area is clear
-        if (index.exists() || index.length() == 0) {
+        Index stagedArea = readObject(index, Index.class);
+        if (stagedArea.stagedToAddFiles.isEmpty() && stagedArea.stagedToRemoveFiles.isEmpty()) {
             throw new GitletException("No changes added to the commit.");
         } else if (commitMsg.isEmpty()) {
             // abort if the commit msg is blank
             throw new GitletException("Please enter a commit message.");
         }
 
-        currCommit = new Commit(commitMsg, CalculateParents(), calculateBlobs());
-        currCommit.saveCommit();
-        initOrUpdateHeads();
+        Commit c = new Commit(commitMsg, CalculateParents(), calculateBlobs());
+        c.saveCommit();
+        initOrUpdateHeads(c);
         clearStagedArea();
     }
 
     private static List<String> CalculateParents() {
         List<String> parents = new ArrayList<>();
+        currCommit = getCurrCommit();
         parents.add(currCommit.getCommitID());
         return parents;
     }
 
     private static HashMap<String, String> calculateBlobs() {
-        HashMap<String, String> blobs = currCommit.getBlobs();
-        Index stagedArea = readObject(Repository.index, Index.class); // get index file
+        HashMap<String, String> blobs = getCurrCommit().getBlobs();
+        Index stagedArea = readObject(index, Index.class); // get index file
         for (String i: stagedArea.stagedToAddFiles.keySet()) {
             blobs.put(i, stagedArea.stagedToAddFiles.get(i)); // update + add if any changes in staged
         }
@@ -161,6 +181,7 @@ public class Repository {
     public static void removeFile(String fileName) {
         File f = join(CWD, fileName);
         Index stagedArea = readObject(index, Index.class);
+        currCommit = getCurrCommit();
 
         if (stagedArea.stagedToAddFiles.containsKey(f.getPath())) {
             stagedArea.stagedToAddFiles.remove(f.getPath());
@@ -168,19 +189,21 @@ public class Repository {
             Blob b = readObject(myUtils.getObjectFilebyID(currCommit.getBlobs().get(f.getPath())), Blob.class);
             stagedArea.removeFile(b);
         } else {throw new GitletException("No reason to remove the file."); }
+        stagedArea.saveIndex();
     }
 
     public static void displayLog() {
+        currCommit = getCurrCommit();
         List<String> firstParents = currCommit.getParents();
         Commit commitToDisplay = currCommit;
         while (commitToDisplay != null) {
             System.out.println("===");
-            System.out.printf("Commit: %s%n", commitToDisplay.getCommitID());
+            System.out.printf("commit %s%n", commitToDisplay.getCommitID());
             System.out.printf("Date: %s%n", commitToDisplay.getCommitTime());
-            System.out.printf(commitToDisplay.getCommitMsg());
+            System.out.println(commitToDisplay.getCommitMsg());
             System.out.println();
-            if (firstParents.isEmpty()) {commitToDisplay = null; }
-            else {commitToDisplay = getObjectbyID(currCommit.getParents().get(0), Commit.class);}
+            if (commitToDisplay.getParents().isEmpty()) {commitToDisplay = null; }
+            else {commitToDisplay = getObjectbyID(commitToDisplay.getParents().get(0), Commit.class);}
         }
     }
 
@@ -197,15 +220,58 @@ public class Repository {
     }
 
     public static void checkoutToFile(String fileName) {
+        File f = join(CWD, fileName);
+        checkFileExistInCommit(f, getCurrCommit());
 
+        rewriteContentforCheckoutToFile(getCurrCommit(), f);
     }
 
-    public static void checkoutToCommitsFile(String commitID, String fileName) {
+    private static void checkFileExistInCommit(File f, Commit c) {
+        if (!c.getBlobs().containsKey(f.getPath())) {
+            throw new GitletException("File does not exist in that commit.");
+        }
+    }
 
+    private static void checkCommitExistwithID(String ID) {
+        if (!getObjectFilebyID(ID).exists()) {
+            throw new GitletException("No commit with that id exists.");
+        }
+    }
+
+    private static String getBlobIDbyFile(Commit c, File f) {
+        return c.getBlobs().get(f.getPath());
+    }
+
+    public static void checkoutToCommitsFile(String ID, String fileName) {
+        File f = join(CWD, fileName);
+        checkCommitExistwithID(ID);
+        Commit c = getObjectbyID(ID, Commit.class);
+        checkFileExistInCommit(f, c);
+
+        rewriteContentforCheckoutToFile(c, f);
+    }
+
+    private static void rewriteContentforCheckoutToFile(Commit c, File f) {
+        Blob oldBlob = getObjectbyID(getBlobIDbyFile(c, f), Blob.class);
+        writeContents(f, oldBlob.getContent());
     }
 
     public static void checkoutToBranch(String branchName) {
+        File branch = join(HEADS_DIR, branchName);
+        checkBranchExist(branch);
+        checkBranchiscurrBranch(branchName);
+    }
 
+    private static void checkBranchExist(File branch) {
+        if (!branch.exists()) {
+            throw new GitletException("No such branch exists.");
+        }
+    }
+
+    private static void checkBranchiscurrBranch(String branchName) {
+        if (getCurrBranch().equals(branchName)) {
+            throw new GitletException("No need to checkout the current branch.");
+        }
     }
 
     public static void createNewBranch(String branchName) {
