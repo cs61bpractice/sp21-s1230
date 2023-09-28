@@ -431,7 +431,16 @@ public class Repository {
     }
 
     public static void resetToCommit(String commitID) {
+        Commit c = getObjectbyID(commitID, Commit.class);
+        checkPossibleRewritesToUntrackedFile(c);
 
+        changeToCommit(c);
+        changeBranchHeadToGivenCommit(readContentsAsString(HEAD), commitID);
+        clearStagedArea();
+    }
+
+    private static void changeBranchHeadToGivenCommit(String branch, String commitID) {
+        writeObject(join(HEADS_DIR, branch), commitID);
     }
 
     public static void mergeToBranch(String branchName) {

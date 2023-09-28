@@ -19,6 +19,7 @@ class myUtils {
 
     public static <T extends Serializable> T getObjectbyID(String ID, Class<T> expectedClass) {
         File f = getObjectFilebyID(ID);
+        if (!f.exists()) {throw new GitletException("No commit with that id exists."); }
         return readObject(f, expectedClass); // makesure the file exists
     }
 
