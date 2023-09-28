@@ -211,7 +211,7 @@ public class Repository {
     }
 
     public static void displayGlobalLog() {
-        for (File folder: CWD.listFiles()) {
+        for (File folder: OBJECT_DIR.listFiles()) {
             for (String id: plainFilenamesIn(folder)) {
                 File f = join(folder, id);
                 try {
@@ -223,7 +223,25 @@ public class Repository {
     }
 
     public static void findCommitsWithMsg(String commitMsg) {
+        List<String> commitIdList = new ArrayList<>();
+        for (File folder: OBJECT_DIR.listFiles()) {
+            for (String id: plainFilenamesIn(folder)) {
+                File f = join(folder, id);
+                try {
+                    Commit c = readObject(f, Commit.class);
+                    if (c.getCommitMsg().equals(commitMsg)) {commitIdList.add(c.getCommitID()); }
+                } catch (Exception ignore) {}
+            }
+        }
+        printCommitIDList(commitIdList);
+    }
 
+    private static void printCommitIDList(List<String> commitIdList) {
+        if (commitIdList.isEmpty()) {
+            System.out.println("Found no commit with that message.");
+        } else {
+            for (String id: commitIdList) {System.out.println(id);}
+        }
     }
 
     public static void displayStatus() {
