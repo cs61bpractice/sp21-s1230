@@ -420,7 +420,14 @@ public class Repository {
     }
 
     public static void removeBranch(String branchName) {
+        File branch = join(HEADS_DIR, branchName);
+        if (!branch.exists()) {
+            throw new GitletException("A branch with that name does not exist.");
+        } else if (readContentsAsString(HEAD).equals(branchName)) {
+            throw new GitletException("Cannot remove the current branch.");
+        }
 
+        restrictedDelete(branch);
     }
 
     public static void resetToCommit(String commitID) {
