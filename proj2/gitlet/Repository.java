@@ -232,6 +232,21 @@ public class Repository {
         System.out.println("%n");
 
         System.out.println("=== Untracked Files ===");
+        displayUntrackedFiles();
+        System.out.println("%n");
+    }
+
+    private static void displayUntrackedFiles() {
+        List<String> res = new ArrayList<>();
+        for (File f: CWD.listFiles()) {
+            if (!getStagedArea().stagedToAddFiles.containsKey(f.getPath()) &&
+                    !getStagedArea().stagedToRemoveFiles.containsKey(f.getPath()) &&
+                    !getCurrCommit().getBlobs().containsKey(f.getPath())) {
+                res.add(f.getName());
+            }
+        }
+        Collections.sort(res);
+        for (String fileName: res) {System.out.println(fileName);}
     }
 
     private static void displayBranches() {
