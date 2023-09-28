@@ -375,7 +375,7 @@ public class Repository {
         checkPossibleRewritesToUntrackedFile(c);
 
         changeToCommit(c);
-        writeContents(HEAD, branchName);
+        changeBranchTo(branchName);
         clearStagedArea();
     }
 
@@ -387,6 +387,10 @@ public class Repository {
         for (String filePath: getCurrCommit().getBlobs().keySet()) {
             restrictedDelete(new File(filePath));
         }
+    }
+
+    private static void changeBranchTo(String branchName) {
+        writeContents(HEAD, branchName);
     }
 
     private static void checkPossibleRewritesToUntrackedFile(Commit c) {
