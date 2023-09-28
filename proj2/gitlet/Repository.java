@@ -3,15 +3,16 @@ package gitlet;
 import java.io.File;
 import java.lang.reflect.Array;
 import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
+import java.util.regex.Pattern;
 
 // TODO: any imports you need here
 
 import static gitlet.Utils.*;
+import static gitlet.Utils.readContents;
 import static gitlet.myUtils.*;
+import static gitlet.myUtils.asSortedList;
+
 import gitlet.Blob.*;
 import gitlet.Commit.*;
 import gitlet.Index.*;
@@ -117,7 +118,7 @@ public class Repository {
 
         Blob b = new Blob(f);
         b.saveBlob();
-        Index stagedArea = readObject(index, Index.class);
+        Index stagedArea = getStagedArea();
         HashMap<String, String> commitFileMap = getCurrCommit().getBlobs();
         if (commitFileMap.containsKey(b.getFilePath()) && commitFileMap.get(b.getFilePath()).equals(b.getID())) {
             if (stagedArea.stagedToAddFiles.containsKey(b.getFilePath())) {
@@ -130,16 +131,14 @@ public class Repository {
             stagedArea.addFile(b);
         }
         stagedArea.saveIndex();
-        // own test
-//        Index test1 = readObject(index, Index.class);
-//        System.out.println(test1.stagedToAddFiles);
-//        System.out.println(test1.stagedToRemoveFiles);
     }
+
+    private static Index getStagedArea() {return readObject(index, Index.class); }
 
     public static void newCommit(String commitMsg) {
 
         // abort if the staging area is clear
-        Index stagedArea = readObject(index, Index.class);
+        Index stagedArea = getStagedArea();
         if (stagedArea.stagedToAddFiles.isEmpty() && stagedArea.stagedToRemoveFiles.isEmpty()) {
             throw new GitletException("No changes added to the commit.");
         } else if (commitMsg.isEmpty()) {
@@ -162,7 +161,7 @@ public class Repository {
 
     private static HashMap<String, String> calculateBlobs() {
         HashMap<String, String> blobs = getCurrCommit().getBlobs();
-        Index stagedArea = readObject(index, Index.class); // get index file
+        Index stagedArea = getStagedArea();
         for (String i: stagedArea.stagedToAddFiles.keySet()) {
             blobs.put(i, stagedArea.stagedToAddFiles.get(i)); // update + add if any changes in staged
         }
@@ -173,14 +172,14 @@ public class Repository {
     }
 
     private static void clearStagedArea() {
-        Index stagedArea = readObject(Repository.index, Index.class);
+        Index stagedArea = getStagedArea();
         stagedArea.clearStagingArea();
         stagedArea.saveIndex();
     }
 
     public static void removeFile(String fileName) {
         File f = join(CWD, fileName);
-        Index stagedArea = readObject(index, Index.class);
+        Index stagedArea = getStagedArea();
         currCommit = getCurrCommit();
 
         if (stagedArea.stagedToAddFiles.containsKey(f.getPath())) {
@@ -216,7 +215,72 @@ public class Repository {
     }
 
     public static void displayStatus() {
+        System.out.println("=== Branches ===");
+        displayBranches();
+        System.out.println("%n");
 
+        System.out.println("=== Staged Files ===");
+        displayStagedFiles(getStagedArea().stagedToAddFiles);
+        System.out.println("%n");
+
+        System.out.println("=== Removed Files ===");
+        displayStagedFiles(getStagedArea().stagedToRemoveFiles);
+        System.out.println("%n");
+
+        System.out.println("=== Modifications Not Staged For Commit ===");
+        printUnstagedFiles();
+        System.out.println("%n");
+
+        System.out.println("=== Untracked Files ===");
+    }
+
+    private static void displayBranches() {
+        String currBranch = getCurrBranch();
+        for (String branch: plainFilenamesIn(HEADS_DIR)) {
+            if (currBranch.equals(currBranch)) {
+                System.out.printf("*%s%n", currBranch);
+            } else {System.out.println(branch); }
+        }
+    }
+
+    private static void displayStagedFiles(HashMap<String, String> files) {
+        printFileNamesfromPaths(asSortedList(files.keySet()));
+    }
+
+    private static void printFileNamesfromPaths(List<String> l) {
+        for (String filePath: l) {System.out.println(getFileNameFromPath(filePath)); }
+    }
+
+    private static void printUnstagedFiles() {
+        printFileNamesfromPaths(getUnstagedFiles());
+    }
+
+    private static List<String> getUnstagedFiles() {
+        List<String> res = getUnstagedFilesfromHashmap(getStagedArea().stagedToAddFiles);
+        for (String filePath: getUnstagedFilesfromHashmap(getCurrCommit().getBlobs())) {
+            if (!getStagedArea().stagedToRemoveFiles.containsKey(filePath)
+                    && !getStagedArea().stagedToAddFiles.containsKey(filePath)) {
+                res.add(filePath);
+            }
+        }
+        Collections.sort(res);
+        return res;
+    }
+
+    // a helper function for above to shorten codes
+    private static List<String> getUnstagedFilesfromHashmap(HashMap<String, String> Map) {
+        List<String> res = new ArrayList<>();
+        for (Map.Entry<String, String> entry: Map.entrySet()) {
+            String filePath = entry.getKey();
+            String fileContent = entry.getValue();
+            File fileInCWD = new File(filePath);
+            String fileContentInCWD = sha1(readContents(fileInCWD));
+            // if the file does not exist in CWD or the version is diff with CWD version
+            if (!fileInCWD.exists() || (!fileContent.equals(fileContentInCWD))) {
+                res.add(filePath);
+            }
+        }
+        return res;
     }
 
     public static void checkoutToFile(String fileName) {
