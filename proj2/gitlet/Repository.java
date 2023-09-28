@@ -212,8 +212,8 @@ public class Repository {
 
     public static void displayGlobalLog() {
         for (File folder: OBJECT_DIR.listFiles()) {
-            for (String id: plainFilenamesIn(folder)) {
-                File f = join(folder, id);
+            for (String ID: plainFilenamesIn(folder)) {
+                File f = join(folder, ID);
                 try {
                     Commit c = readObject(f, Commit.class);
                     printLog(c);
@@ -225,8 +225,8 @@ public class Repository {
     public static void findCommitsWithMsg(String commitMsg) {
         List<String> commitIdList = new ArrayList<>();
         for (File folder: OBJECT_DIR.listFiles()) {
-            for (String id: plainFilenamesIn(folder)) {
-                File f = join(folder, id);
+            for (String ID: plainFilenamesIn(folder)) {
+                File f = join(folder, ID);
                 try {
                     Commit c = readObject(f, Commit.class);
                     if (c.getCommitMsg().equals(commitMsg)) {commitIdList.add(c.getCommitID()); }
@@ -240,7 +240,7 @@ public class Repository {
         if (commitIdList.isEmpty()) {
             System.out.println("Found no commit with that message.");
         } else {
-            for (String id: commitIdList) {System.out.println(id);}
+            for (String ID: commitIdList) {System.out.println(ID);}
         }
     }
 
@@ -269,9 +269,9 @@ public class Repository {
     private static void displayUntrackedFiles() {
         List<String> res = new ArrayList<>();
         for (File f: CWD.listFiles()) {
-            if (!getStagedArea().stagedToAddFiles.containsKey(f.getPath()) &&
-                    !getStagedArea().stagedToRemoveFiles.containsKey(f.getPath()) &&
-                    !getCurrCommit().getBlobs().containsKey(f.getPath())) {
+            if (!getStagedArea().stagedToAddFiles.containsKey(f.getPath())
+                    && !getStagedArea().stagedToRemoveFiles.containsKey(f.getPath())
+                    && !getCurrCommit().getBlobs().containsKey(f.getPath())) {
                 res.add(f.getName());
             }
         }
@@ -369,6 +369,33 @@ public class Repository {
         File branch = join(HEADS_DIR, branchName);
         checkBranchExist(branch);
         checkBranchiscurrBranch(branchName);
+
+        String ID = readContentsAsString(branch);
+        Commit c = getObjectbyID(ID, Commit.class);
+        checkPossibleRewritesToUntrackedFile(c);
+
+        changeToCommit(c);
+        writeContents(HEAD, branchName);
+        clearStagedArea();
+    }
+
+    private static void changeToCommit(Commit c) {
+        for (String filePath: c.getBlobs().keySet()) {
+            rewriteContentforCheckoutToFile(c, new File(filePath));
+        } // rewrite + add files
+
+        for (String filePath: getCurrCommit().getBlobs().keySet()) {
+            restrictedDelete(new File(filePath));
+        }
+    }
+
+    private static void checkPossibleRewritesToUntrackedFile(Commit c) {
+        for (File f: CWD.listFiles()) {
+            if (c.getBlobs().containsKey(f.getPath())
+                    && !getCurrCommit().getBlobs().containsKey(f.getPath())) {
+                throw new GitletException("There is an untracked file in the way; delete it, or add and commit it first.");
+            }
+        }
     }
 
     private static void checkBranchExist(File branch) {
@@ -384,7 +411,12 @@ public class Repository {
     }
 
     public static void createNewBranch(String branchName) {
-
+        File newBranch = join(HEADS_DIR, branchName);
+        if (newBranch.exists()) {
+            System.out.println("A branch with that name already exists.");
+        } else {
+            writeContents(newBranch, getCurrCommitID());
+        }
     }
 
     public static void removeBranch(String branchName) {
