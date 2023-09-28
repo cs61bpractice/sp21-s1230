@@ -196,18 +196,30 @@ public class Repository {
         List<String> firstParents = currCommit.getParents();
         Commit commitToDisplay = currCommit;
         while (commitToDisplay != null) {
-            System.out.println("===");
-            System.out.printf("commit %s%n", commitToDisplay.getCommitID());
-            System.out.printf("Date: %s%n", commitToDisplay.getCommitTime());
-            System.out.println(commitToDisplay.getCommitMsg());
-            System.out.println();
+            printLog(commitToDisplay);
             if (commitToDisplay.getParents().isEmpty()) {commitToDisplay = null; }
             else {commitToDisplay = getObjectbyID(commitToDisplay.getParents().get(0), Commit.class);}
         }
     }
 
-    public static void displayGlobalLog() {
+    private static void printLog(Commit commitToDisplay) {
+        System.out.println("===");
+        System.out.printf("commit %s%n", commitToDisplay.getCommitID());
+        System.out.printf("Date: %s%n", commitToDisplay.getCommitTime());
+        System.out.println(commitToDisplay.getCommitMsg());
+        System.out.println();
+    }
 
+    public static void displayGlobalLog() {
+        for (File folder: CWD.listFiles()) {
+            for (String id: plainFilenamesIn(folder)) {
+                File f = join(folder, id);
+                try {
+                    Commit c = readObject(f, Commit.class);
+                    printLog(c);
+                } catch (Exception ignore) {}
+            }
+        }
     }
 
     public static void findCommitsWithMsg(String commitMsg) {
