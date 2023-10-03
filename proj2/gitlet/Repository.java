@@ -247,23 +247,23 @@ public class Repository {
     public static void displayStatus() {
         System.out.println("=== Branches ===");
         displayBranches();
-        System.out.println("%n");
+        System.out.println();
 
         System.out.println("=== Staged Files ===");
         displayStagedFiles(getStagedArea().stagedToAddFiles);
-        System.out.println("%n");
+        System.out.println();
 
         System.out.println("=== Removed Files ===");
         displayStagedFiles(getStagedArea().stagedToRemoveFiles);
-        System.out.println("%n");
+        System.out.println();
 
         System.out.println("=== Modifications Not Staged For Commit ===");
         printUnstagedFiles();
-        System.out.println("%n");
+        System.out.println();
 
         System.out.println("=== Untracked Files ===");
         displayUntrackedFiles();
-        System.out.println("%n");
+        System.out.println();
     }
 
     private static void displayUntrackedFiles() {
@@ -271,8 +271,10 @@ public class Repository {
         for (File f: CWD.listFiles()) {
             if (!getStagedArea().stagedToAddFiles.containsKey(f.getPath())
                     && !getStagedArea().stagedToRemoveFiles.containsKey(f.getPath())
-                    && !getCurrCommit().getBlobs().containsKey(f.getPath())) {
+                    && !getCurrCommit().getBlobs().containsKey(f.getPath())
+                    && !f.isDirectory()) {
                 res.add(f.getName());
+                // System.out.printf("test: %s%n", CWD); // test statement
             }
         }
         Collections.sort(res);
@@ -302,10 +304,12 @@ public class Repository {
 
     private static List<String> getUnstagedFiles() {
         List<String> res = getUnstagedFilesfromHashmap(getStagedArea().stagedToAddFiles);
-        for (String filePath: getUnstagedFilesfromHashmap(getCurrCommit().getBlobs())) {
+        for (String entry: getUnstagedFilesfromHashmap(getCurrCommit().getBlobs())) {
+            String[] tempParts = entry.split(Pattern.quote(" "));
+            String filePath = tempParts[0];
             if (!getStagedArea().stagedToRemoveFiles.containsKey(filePath)
                     && !getStagedArea().stagedToAddFiles.containsKey(filePath)) {
-                res.add(filePath);
+                res.add(filePath+" "+tempParts[1]);
             }
         }
         Collections.sort(res);
@@ -319,10 +323,16 @@ public class Repository {
             String filePath = entry.getKey();
             String fileContent = entry.getValue();
             File fileInCWD = new File(filePath);
-            String fileContentInCWD = sha1(readContents(fileInCWD));
+            // System.out.printf("test: %s%n", fileInCWD); // test line
+
             // if the file does not exist in CWD or the version is diff with CWD version
-            if (!fileInCWD.exists() || (!fileContent.equals(fileContentInCWD))) {
-                res.add(filePath);
+            if (!fileInCWD.exists()) {
+                res.add(filePath+" (deleted)");
+            } else {
+                String fileContentInCWD = sha1(readContents(fileInCWD));
+                if (!fileContent.equals(fileContentInCWD)) {
+                    res.add(filePath+" (modified)");
+                }
             }
         }
         return res;

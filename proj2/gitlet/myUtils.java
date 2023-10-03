@@ -30,7 +30,7 @@ class myUtils {
     }
 
     public static String getFileNameFromPath(String filePath) {
-        String[] res = filePath.split(Pattern.quote("\\"));
+        String[] res = filePath.split(Pattern.quote("/"));
         return res[res.length-1];
     }
 
