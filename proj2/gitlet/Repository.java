@@ -69,9 +69,8 @@ public class Repository {
 
     public static void initiateGitlet() {
         if (GITLET_DIR.exists()) {
-            throw new GitletException(
-                    "A Gitlet version-control system already exists in the current directory"
-            );
+            System.out.println("A Gitlet version-control system already exists in the current directory");
+            System.exit(0);
         }
         setupPersistence();
         Commit currCommit = initCommit();
@@ -112,25 +111,37 @@ public class Repository {
 
     public static void addToStage(String fileName) {
         File f = join(CWD, fileName);
-        if (!f.exists()) {
-            throw new GitletException("File does not exist.");
-        }
+        checkFileExist(f, "add");
 
         Blob b = new Blob(f);
         b.saveBlob();
         Index stagedArea = getStagedArea();
         HashMap<String, String> commitFileMap = getCurrCommit().getBlobs();
         if (commitFileMap.containsKey(b.getFilePath()) && commitFileMap.get(b.getFilePath()).equals(b.getID())) {
-            if (stagedArea.stagedToAddFiles.containsKey(b.getFilePath())) {
-                stagedArea.stagedToAddFiles.remove(b.getFilePath());
-            }
-        } else {
-            if (stagedArea.stagedToRemoveFiles.containsKey(b.getFilePath())) {
-                stagedArea.stagedToRemoveFiles.remove(b.getFilePath());
-            }
+            removeEntry(stagedArea.stagedToAddFiles, b.getFilePath());
+            removeEntry(stagedArea.stagedToRemoveFiles, b.getFilePath());
+        } else if (!removeEntry(stagedArea.stagedToRemoveFiles, b.getFilePath())) {
             stagedArea.addFile(b);
         }
         stagedArea.saveIndex();
+    }
+
+    private static Boolean removeEntry(HashMap<String, String> map, String key) {
+        if (map.containsKey(key)){
+            map.remove(key);
+            return true;
+        }
+        return false;
+    }
+
+    public static void test(String to_print) {
+        if (to_print.equals("index")) {
+            System.out.println(getStagedArea().stagedToAddFiles); // own test
+            System.out.println(getStagedArea().stagedToRemoveFiles); // own test
+        } else if (to_print.equals("currCommit")) {
+            System.out.println(getCurrCommit().getBlobs()); // own test
+            System.out.println(readContentsAsString(join(HEADS_DIR, getCurrBranch()))); // own test
+        }
     }
 
     private static Index getStagedArea() {return readObject(index, Index.class); }
@@ -140,10 +151,12 @@ public class Repository {
         // abort if the staging area is clear
         Index stagedArea = getStagedArea();
         if (stagedArea.stagedToAddFiles.isEmpty() && stagedArea.stagedToRemoveFiles.isEmpty()) {
-            throw new GitletException("No changes added to the commit.");
+            System.out.println("No changes added to the commit.");
+            System.exit(0);
         } else if (commitMsg.isEmpty()) {
             // abort if the commit msg is blank
-            throw new GitletException("Please enter a commit message.");
+            System.out.println("Please enter a commit message.");
+            System.exit(0);
         }
 
         Commit c = new Commit(commitMsg, CalculateParents(), calculateBlobs());
@@ -187,7 +200,10 @@ public class Repository {
         } else if (currCommit.getBlobs().containsKey(f.getPath())) {
             Blob b = readObject(myUtils.getObjectFilebyID(currCommit.getBlobs().get(f.getPath())), Blob.class);
             stagedArea.removeFile(b);
-        } else {throw new GitletException("No reason to remove the file."); }
+        } else {
+            System.out.println("No reason to remove the file.");
+            System.exit(0);
+        }
         stagedArea.saveIndex();
     }
 
@@ -239,6 +255,7 @@ public class Repository {
     private static void printCommitIDList(List<String> commitIdList) {
         if (commitIdList.isEmpty()) {
             System.out.println("Found no commit with that message.");
+            System.exit(0);
         } else {
             for (String ID: commitIdList) {System.out.println(ID);}
         }
@@ -284,7 +301,7 @@ public class Repository {
     private static void displayBranches() {
         String currBranch = getCurrBranch();
         for (String branch: plainFilenamesIn(HEADS_DIR)) {
-            if (currBranch.equals(currBranch)) {
+            if (currBranch.equals(branch)) {
                 System.out.printf("*%s%n", currBranch);
             } else {System.out.println(branch); }
         }
@@ -329,7 +346,7 @@ public class Repository {
             if (!fileInCWD.exists()) {
                 res.add(filePath+" (deleted)");
             } else {
-                String fileContentInCWD = sha1(readContents(fileInCWD));
+                String fileContentInCWD = sha1(filePath, readContents(fileInCWD));
                 if (!fileContent.equals(fileContentInCWD)) {
                     res.add(filePath+" (modified)");
                 }
@@ -347,13 +364,15 @@ public class Repository {
 
     private static void checkFileExistInCommit(File f, Commit c) {
         if (!c.getBlobs().containsKey(f.getPath())) {
-            throw new GitletException("File does not exist in that commit.");
+            System.out.println("File does not exist in that commit.");
+            System.exit(0);
         }
     }
 
     private static void checkCommitExistwithID(String ID) {
         if (!getObjectFilebyID(ID).exists()) {
-            throw new GitletException("No commit with that id exists.");
+            System.out.println("No commit with that id exists.");
+            System.exit(0);
         }
     }
 
@@ -377,11 +396,13 @@ public class Repository {
 
     public static void checkoutToBranch(String branchName) {
         File branch = join(HEADS_DIR, branchName);
-        checkBranchExist(branch);
-        checkBranchiscurrBranch(branchName);
+        checkFileExist(branch, "checkout-branch");
+        checkBranchiscurrBranch(branchName, "checkout");
 
         String ID = readContentsAsString(branch);
+        //System.out.println(ID);//own test
         Commit c = getObjectbyID(ID, Commit.class);
+        //System.out.println(c.getBlobs()); // own test
         checkPossibleRewritesToUntrackedFile(c);
 
         changeToCommit(c);
@@ -395,7 +416,9 @@ public class Repository {
         } // rewrite + add files
 
         for (String filePath: getCurrCommit().getBlobs().keySet()) {
-            restrictedDelete(new File(filePath));
+            if (!c.getBlobs().containsKey(filePath)) {
+                restrictedDelete(new File(filePath));
+            }
         }
     }
 
@@ -407,41 +430,56 @@ public class Repository {
         for (File f: CWD.listFiles()) {
             if (c.getBlobs().containsKey(f.getPath())
                     && !getCurrCommit().getBlobs().containsKey(f.getPath())) {
-                throw new GitletException("There is an untracked file in the way; delete it, or add and commit it first.");
+                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                System.exit(0);
             }
         }
     }
 
-    private static void checkBranchExist(File branch) {
-        if (!branch.exists()) {
-            throw new GitletException("No such branch exists.");
+    private static void checkFileExist(File f, String operation) {
+        if (!f.exists()) {
+            if (operation.equals("checkout-branch")) {
+                System.out.println("No such branch exists.");
+            } else if (operation.equals("add")) {
+                System.out.println("File does not exist.");
+            } else {
+                System.out.println("A branch with that name does not exist.");
+            }
+            System.exit(0);
         }
     }
 
-    private static void checkBranchiscurrBranch(String branchName) {
+    private static void checkBranchiscurrBranch(String branchName, String operation) {
         if (getCurrBranch().equals(branchName)) {
-            throw new GitletException("No need to checkout the current branch.");
+            if (operation.equals("checkout")) {
+                System.out.println("No need to checkout the current branch.");
+            } else if (operation.equals("merge")) {
+                System.out.println("Cannot merge a branch with itself.");
+            } else {
+                System.out.println("Cannot remove the current branch.");
+            }
+            System.exit(0);
         }
     }
 
     public static void createNewBranch(String branchName) {
         File newBranch = join(HEADS_DIR, branchName);
-        if (newBranch.exists()) {
+        branchAlrExist(newBranch);
+        writeContents(newBranch, getCurrCommitID());
+    }
+
+    private static void branchAlrExist(File branch) {
+        if (branch.exists()) {
             System.out.println("A branch with that name already exists.");
-        } else {
-            writeContents(newBranch, getCurrCommitID());
+            System.exit(0);
         }
     }
 
     public static void removeBranch(String branchName) {
         File branch = join(HEADS_DIR, branchName);
-        if (!branch.exists()) {
-            throw new GitletException("A branch with that name does not exist.");
-        } else if (readContentsAsString(HEAD).equals(branchName)) {
-            throw new GitletException("Cannot remove the current branch.");
-        }
-
-        restrictedDelete(branch);
+        checkFileExist(branch, "rm-branch");
+        checkBranchiscurrBranch(branchName, "rm-branch");
+        branch.delete();
     }
 
     public static void resetToCommit(String commitID) {
@@ -454,10 +492,62 @@ public class Repository {
     }
 
     private static void changeBranchHeadToGivenCommit(String branch, String commitID) {
-        writeObject(join(HEADS_DIR, branch), commitID);
+        writeContents(join(HEADS_DIR, branch), commitID);
     }
 
     public static void mergeToBranch(String branchName) {
+        checkUncommitedChanges();
+        File tbranch = join(HEADS_DIR, branchName);
+        checkFileExist(tbranch, "merge");
+        checkBranchiscurrBranch(branchName, "merge");
+        Commit mCommit = readObject(tbranch, Commit.class);
+        checkPossibleRewritesToUntrackedFile(mCommit);
+    }
 
+    private static Commit findSplitPoint(File branch) {
+        Commit c1 = getCurrCommit();
+        Commit c2 = getObjectbyID(readContentsAsString(branch), Commit.class);
+
+        HashSet<String> set = listOfCommitsWithDepth(c1);
+        ArrayList<Commit> level = new ArrayList<>();
+        level.add(c2);
+        while (!level.isEmpty()) {
+            ArrayList<Commit> new_level = new ArrayList<>();
+            for (Commit c: level) {
+                if (set.contains(c)) {
+                    return c;
+                } else {
+                    for (String id: c.getParents()) {
+                        Commit p = getObjectbyID(id, Commit.class);
+                        new_level.add(p);
+                    }
+                }
+            }
+            level = new_level;
+        }
+        return new Commit(); // will not be incur
+    }
+
+    private static HashSet<String> listOfCommitsWithDepth(Commit c) {
+        HashSet<String> set = new HashSet<>();
+        Queue<Commit> q = new LinkedList<Commit>();
+        q.add(c);
+        while (!q.isEmpty()) {
+            Commit currC = q.remove();
+            set.add(currC.getCommitID());
+            for (String id: currC.getParents()) {
+                Commit p = getObjectbyID(id, Commit.class);
+                q.add(p);
+            }
+        }
+        return set;
+    }
+
+    private static void checkUncommitedChanges() {
+        if (!getStagedArea().stagedToRemoveFiles.isEmpty()
+                || !getStagedArea().stagedToAddFiles.isEmpty()) {
+            System.out.println("You have uncommitted changes.");
+            System.exit(0);
+        }
     }
 }

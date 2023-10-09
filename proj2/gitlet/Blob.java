@@ -20,7 +20,7 @@ public class Blob implements Serializable {
         this.fileInCWD = f;
         this.filecontent = readContents(fileInCWD);
         this.filePath = fileInCWD.getPath();
-        this.blobID = sha1(filecontent);
+        this.blobID = sha1(this.filePath, filecontent);
     }
 
     public byte[] getContent() {return filecontent; }

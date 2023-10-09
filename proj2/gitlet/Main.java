@@ -68,14 +68,16 @@ public class Main {
                 // TODO
                 if ((args.length == 3 && !args[1].equals("--"))
                         || (args.length == 4 && !args[2].equals("--"))){
-                    validateNumArgs("checkout", args, 2);
+                    invalidOperand();
                 }
                 if (args.length == 3) {
                     Repository.checkoutToFile(args[2]);
                 } else if (args.length == 4) {
                     Repository.checkoutToCommitsFile(args[1], args[3]);
-                } else {
+                } else if (args.length == 2) {
                     Repository.checkoutToBranch(args[1]);
+                } else {
+                    validateNumArgs("checkout", args, 3);
                 }
                 break;
             case "branch":
@@ -98,13 +100,22 @@ public class Main {
                 validateNumArgs("merge", args, 2);
                 Repository.mergeToBranch(args[1]);
                 break;
+            case "test":
+                validateNumArgs("test", args, 2);
+                Repository.test(args[1]);
+                break;
         }
     }
 
     public static void validateNumArgs(String cmd, String[] args, int n) {
         if (args.length != n) {
-            throw new RuntimeException(
-                    String.format("Invalid number of arguments for: %s.", cmd));
+            System.out.printf("Invalid number of arguments for: %s.", cmd);
+            System.exit(0);
         }
+    }
+
+    public static void invalidOperand() {
+        System.out.println("Incorrect operands.");
+        System.exit(0);
     }
 }

@@ -12,6 +12,8 @@ import static gitlet.Utils.*;
 
 class myUtils {
     public static File getObjectFilebyID(String ID) {
+        // System.out.println(ID); // own test
+        // System.out.println(Repository.OBJECT_DIR); // own test
         File objectFolder = join(Repository.OBJECT_DIR, ID.substring(0,3));
         objectFolder.mkdir();
         return new File(objectFolder, ID.substring(3));
@@ -19,7 +21,10 @@ class myUtils {
 
     public static <T extends Serializable> T getObjectbyID(String ID, Class<T> expectedClass) {
         File f = getObjectFilebyID(ID);
-        if (!f.exists()) {throw new GitletException("No commit with that id exists."); }
+        if (!f.exists()) {
+            System.out.println("No commit with that id exists.");
+            System.exit(0);
+        }
         return readObject(f, expectedClass); // makesure the file exists
     }
 
