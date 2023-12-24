@@ -66,6 +66,13 @@ public class Repository {
         HEADS_DIR.mkdir();
     }
 
+    public static void checkFolderExistence() {
+        if (!GITLET_DIR.exists()) {
+            System.out.println("Not in an initialized Gitlet directory.");
+            System.exit(0);
+        }
+    }
+
     public static void initiateGitlet() {
         if (GITLET_DIR.exists()) {
             System.out.println("A Gitlet version-control system already exists in the current directory");
@@ -168,7 +175,7 @@ public class Repository {
         List<String> parents = new ArrayList<>();
         currCommit = getCurrCommit();
         parents.add(currCommit.getCommitID());
-        if (isTrusy(mCommitID)) {parents.add(mCommitID)};
+        if (isTrusy(mCommitID)) {parents.add(mCommitID); }
         return parents;
     }
 
@@ -500,10 +507,10 @@ public class Repository {
         File tbranch = join(HEADS_DIR, branchName);
         checkFileExist(tbranch, "merge");
         checkBranchiscurrBranch(branchName, "merge");
-        Commit mCommit = readObject(tbranch, Commit.class);
+        Commit mCommit = getObjectbyID(readContentsAsString(tbranch), Commit.class);
         checkPossibleRewritesToUntrackedFile(mCommit);
 
-        Commit splitPoint = findSplitPoint(tbranch);
+        Commit splitPoint = findSplitPoint(mCommit);
         // if the split point is the same commit as the given branch / current branch
         fastMerge(splitPoint, mCommit, branchName);
         // else, continue with the conflict merge
@@ -512,42 +519,49 @@ public class Repository {
         Commit currCommit = getCurrCommit();
         for (Map.Entry<String, String> entry : mCommit.getBlobs().entrySet()) {
             String mKey = entry.getKey();
-            if (currCommit.getBlobs().containsKey(mKey)) {
-                String currValue = currCommit.getBlobs().get(mKey);
-                // for files that are only changed on given branch
-                if (splitPoint.getBlobs().containsKey(mKey)) {
-                    String splitValue = splitPoint.getBlobs().get(mKey);
-                    if (currValue.equals(splitValue) && (!entry.getValue().equals(splitValue))) {
-                        checkoutToCommitsFile(mCommit.getCommitID(), getFileNameFromPath(mKey));
-                        addToStage(getFileNameFromPath(mKey));
-                    }
-                }
-
-                if (!currValue.equals(entry.getValue())) {
-                    // for conflicts to use >>>>>>
-                    String newfile = "<<<<<<< HEAD\n";
-                    Blob currBranchVersion = getObjectbyID(currValue, Blob.class);
-                    newfile += convertBytesToString(currBranchVersion.getContent());
-                    newfile += "=======";
-                    Blob mBranchVersion = getObjectbyID(entry.getValue(), Blob.class);
-                    newfile += convertBytesToString(mBranchVersion.getContent());
-                    newfile += ">>>>>>>";
-                    writeContents(getFileFromPath(mKey), newfile);
-                    addToStage(getFileNameFromPath(mKey));
-                    System.out.println("Encountered a merge conflict.");
-                }
-            } else {
-                // for files existing in given branch but not in current branch
+            // 1-1 situation
+            if ((!currCommit.getBlobs().containsKey(mKey) && !splitPoint.getBlobs().containsKey(mKey)) ||
+                (currCommit.getBlobs().containsKey(mKey) && splitPoint.getBlobs().containsKey(mKey) &&
+                        !splitPoint.getBlobs().get(mKey).equals(entry.getValue()) &&
+                        splitPoint.getBlobs().get(mKey).equals(currCommit.getBlobs().get(mKey)))) {
+//                System.out.println("incurred 1-1 situation"); // temp test
                 checkoutToCommitsFile(mCommit.getCommitID(), getFileNameFromPath(mKey));
                 addToStage(getFileNameFromPath(mKey));
+            } else if ((!splitPoint.getBlobs().containsKey(mKey) && currCommit.getBlobs().containsKey(mKey) &&
+                                !currCommit.getBlobs().get(mKey).equals(entry.getValue())) ||
+                        (splitPoint.getBlobs().containsKey(mKey) && currCommit.getBlobs().containsKey(mKey) &&
+                                new HashSet<>(Arrays.asList(currCommit.getBlobs().get(mKey),
+                                                entry.getValue(), splitPoint.getBlobs().get(mKey))).size() == 3)) {
+                // 1-2 situation
+//                System.out.println("incurred 1-2 situation"); // temp test
+                Blob currBranchVersion = getObjectbyID(currCommit.getBlobs().get(mKey), Blob.class);
+                String currFileContent = convertBytesToString(currBranchVersion.getContent());
+                Blob mBranchVersion = getObjectbyID(entry.getValue(), Blob.class);
+                String mFileContent = convertBytesToString(mBranchVersion.getContent());
+                mergeConflictFilesContent(currFileContent, mFileContent, mKey);
+            } else if (!currCommit.getBlobs().containsKey(mKey) && splitPoint.getBlobs().containsKey(mKey) &&
+                            !entry.getValue().equals(splitPoint.getBlobs().get(mKey))) {
+//                System.out.println("incurred 1-2 situation - deleted for currCommit"); // temp test
+                Blob mBranchVersion = getObjectbyID(entry.getValue(), Blob.class);
+                String mFileContent = convertBytesToString(mBranchVersion.getContent());
+                mergeConflictFilesContent("", mFileContent, mKey);
             }
         }
 
-        // Any files present at the split point, unmodified in the current branch, and absent in the given branch
         for (Map.Entry<String, String> entry : splitPoint.getBlobs().entrySet()) {
             String key = entry.getKey();
-            if (currCommit.getBlobs().containsKey(key) && currCommit.getBlobs().get(key).equals(entry.getValue()) && (!mCommit.getBlobs().containsKey(key))) {
-                removeFile(getFileNameFromPath(key));
+            if (!mCommit.getBlobs().containsKey(key)) {
+                if (currCommit.getBlobs().containsKey(key)) {
+                    if (currCommit.getBlobs().get(key).equals(entry.getValue())) {
+//                        System.out.println("incurred 2-1 situation - remove"); // temp test
+                        removeFile(getFileNameFromPath(key));
+                    } else {
+//                        System.out.println("incurred 2-2 situation - deleted for mCommit"); // temp test
+                        Blob currBranchVersion = getObjectbyID(currCommit.getBlobs().get(key), Blob.class);
+                        String currFileContent = convertBytesToString(currBranchVersion.getContent());
+                        mergeConflictFilesContent(currFileContent, "", key);
+                    }
+                }
             }
         }
 
@@ -555,33 +569,45 @@ public class Repository {
 
     }
 
+    private static void mergeConflictFilesContent(String content1, String content2, String filePath) {
+        String newfile = "<<<<<<< HEAD\n";
+        newfile += content1;
+        newfile += "=======\n";
+        newfile += content2;
+        newfile += ">>>>>>>\n";
+        writeContents(getFileFromPath(filePath), newfile);
+        addToStage(getFileNameFromPath(filePath));
+        System.out.println("Encountered a merge conflict.");
+    }
     private static void fastMerge(Commit splitPoint, Commit mCommit, String branchName) {
-        if (splitPoint == mCommit) {
+//        System.out.println(splitPoint.getBlobs()); // temp test
+        if (splitPoint.getCommitID().equals(mCommit.getCommitID())) {
+//            System.out.println("fast merge incurred"); // temp test
             System.out.println("Given branch is an ancestor of the current branch.");
             System.exit(0);
-        } else if (splitPoint == getCurrCommit()) {
+        } else if (splitPoint.getCommitID().equals(getCurrCommitID())) {
+//            System.out.println("fast merge incurred"); // temp test
             checkoutToBranch(branchName);
             System.out.println("Current branch fast-forwarded.");
             System.exit(0);
         }
     }
 
-    private static Commit findSplitPoint(File branch) {
-        Commit c1 = getCurrCommit();
-        Commit c2 = getObjectbyID(readContentsAsString(branch), Commit.class);
-
-        HashSet<Commit> set = listOfCommitsWithDepth(c1);
-        ArrayList<Commit> level = new ArrayList<>();
-        level.add(c2);
+    private static Commit findSplitPoint(Commit mCommit) {
+        HashSet<String> set = listOfCommitsWithDepth(getCurrCommit());
+//        System.out.println("show list of commits wiht depth" + set); // temp test
+        ArrayList<String> level = new ArrayList<>();
+        level.add(mCommit.getCommitID());
         while (!level.isEmpty()) {
-            ArrayList<Commit> new_level = new ArrayList<>();
-            for (Commit c: level) {
-                if (set.contains(c)) {
-                    return c;
+            ArrayList<String> new_level = new ArrayList<>();
+            for (String id: level) {
+//                System.out.println("loop through to find split point" + id); // temp test
+                if (set.contains(id)) {
+//                    System.out.println("split point found" + id); // temp test
+                    return getObjectbyID(id, Commit.class);
                 } else {
-                    for (String id: c.getParents()) {
-                        Commit p = getObjectbyID(id, Commit.class);
-                        new_level.add(p);
+                    for (String parentId: getObjectbyID(id, Commit.class).getParents()) {
+                        new_level.add(parentId);
                     }
                 }
             }
@@ -590,13 +616,14 @@ public class Repository {
         return new Commit(); // will not be incur
     }
 
-    private static HashSet<Commit> listOfCommitsWithDepth(Commit c) {
-        HashSet<Commit> set = new HashSet<>();
+    private static HashSet<String> listOfCommitsWithDepth(Commit c) {
+        HashSet<String> set = new HashSet<>();
         Queue<Commit> q = new LinkedList<Commit>();
         q.add(c);
         while (!q.isEmpty()) {
             Commit currC = q.remove();
-            set.add(currC);
+//            System.out.println(currC.getCommitID()); // temp test
+            set.add(currC.getCommitID());
             for (String id: currC.getParents()) {
                 Commit p = getObjectbyID(id, Commit.class);
                 q.add(p);

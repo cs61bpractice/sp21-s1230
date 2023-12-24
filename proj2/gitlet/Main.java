@@ -17,6 +17,7 @@ public class Main {
         // check if args are empty
         if (args.length == 0) {
             System.out.println("Please enter a command.");
+            System.exit(0);
         }
 
         String firstArg = args[0];
@@ -29,7 +30,7 @@ public class Main {
                 // System.out.println(currCommit.getBlobs());
                 break;
             case "add":
-                // TODO: handle the `add [filename]` command
+
                 validateNumArgs("add", args, 2);
                 Repository.addToStage(args[1]);
                 break;
@@ -104,6 +105,9 @@ public class Main {
                 validateNumArgs("test", args, 2);
                 Repository.test(args[1]);
                 break;
+            default:
+                System.out.println("No command with that name exists");
+                break;
         }
     }
 
@@ -111,6 +115,8 @@ public class Main {
         if (args.length != n) {
             System.out.printf("Invalid number of arguments for: %s.", cmd);
             System.exit(0);
+        } else if (!cmd.equals("init")) {
+            checkFolderExistence();
         }
     }
 

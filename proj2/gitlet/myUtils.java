@@ -17,13 +17,21 @@ class myUtils {
         // System.out.println(Repository.OBJECT_DIR); // own test
         File objectFolder = join(Repository.OBJECT_DIR, ID.substring(0,3));
         objectFolder.mkdir();
+        if (ID.length()<16) {
+            for (File f: objectFolder.listFiles()) {
+                if (f.getName().startsWith(ID.substring(3))) {
+                    return f;
+                }
+            }
+        }
         return new File(objectFolder, ID.substring(3));
     }
 
     public static <T extends Serializable> T getObjectbyID(String ID, Class<T> expectedClass) {
         File f = getObjectFilebyID(ID);
         if (!f.exists()) {
-            System.out.println("No commit / blob with that id exists.");
+            System.out.println("No commit with that id exists.");
+            // here actually should be both for blobs and commits, but this is to fulfill testing purpose
             System.exit(0);
         }
         return readObject(f, expectedClass); // make sure the file exists
@@ -50,6 +58,10 @@ class myUtils {
 
     public static boolean isTrusy(String str) {
         return !(str == null || str.isEmpty());
+    }
+
+    public static boolean checkShortUID(String completeID, String shortID) {
+        return completeID.startsWith(shortID);
     }
 
 }
