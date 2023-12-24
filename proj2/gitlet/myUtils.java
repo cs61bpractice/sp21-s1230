@@ -2,6 +2,7 @@ package gitlet;
 
 import java.io.File;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,10 +23,10 @@ class myUtils {
     public static <T extends Serializable> T getObjectbyID(String ID, Class<T> expectedClass) {
         File f = getObjectFilebyID(ID);
         if (!f.exists()) {
-            System.out.println("No commit with that id exists.");
+            System.out.println("No commit / blob with that id exists.");
             System.exit(0);
         }
-        return readObject(f, expectedClass); // makesure the file exists
+        return readObject(f, expectedClass); // make sure the file exists
     }
 
     public static List<String> asSortedList(Set<String> s) {
@@ -37,6 +38,18 @@ class myUtils {
     public static String getFileNameFromPath(String filePath) {
         String[] res = filePath.split(Pattern.quote("/"));
         return res[res.length-1];
+    }
+
+    public static File getFileFromPath(String filePath) {
+        return new File(filePath);
+    }
+
+    public static String convertBytesToString(byte[] fileContent) {
+        return new String(fileContent, StandardCharsets.UTF_8);
+    }
+
+    public static boolean isTrusy(String str) {
+        return !(str == null || str.isEmpty());
     }
 
 }
