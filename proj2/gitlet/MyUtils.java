@@ -1,37 +1,40 @@
 package gitlet;
+import static gitlet.Utils.*;
 
 import java.io.File;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static gitlet.Utils.*;
 
-class myUtils {
-    public static File getObjectFilebyID(String ID) {
-        // System.out.println(ID); // own test
-        // System.out.println(Repository.OBJECT_DIR); // own test
-        File objectFolder = join(Repository.OBJECT_DIR, ID.substring(0,3));
+/** Utilities but built by my own - to separate from the given utilities
+ *
+ *  @author Grebeth.P
+ */
+
+class MyUtils {
+    public static File getObjectFilebyID(String id) {
+        File objectFolder = join(Repository.OBJECT_DIR, id.substring(0, 3));
         objectFolder.mkdir();
-        if (ID.length()<16) {
+        if (id.length() < 16) {
             for (File f: objectFolder.listFiles()) {
-                if (f.getName().startsWith(ID.substring(3))) {
+                if (f.getName().startsWith(id.substring(3))) {
                     return f;
                 }
             }
         }
-        return new File(objectFolder, ID.substring(3));
+        return new File(objectFolder, id.substring(3));
     }
 
-    public static <T extends Serializable> T getObjectbyID(String ID, Class<T> expectedClass) {
-        File f = getObjectFilebyID(ID);
+    public static <T extends Serializable> T getObjectbyID(String id, Class<T> expectedClass) {
+        File f = getObjectFilebyID(id);
         if (!f.exists()) {
             System.out.println("No commit with that id exists.");
-            // here actually should be both for blobs and commits, but this is to fulfill testing purpose
+            // here actually should be both for blobs and commits,
+            // // but this is to fulfill testing purpose
             System.exit(0);
         }
         return readObject(f, expectedClass); // make sure the file exists
@@ -45,7 +48,7 @@ class myUtils {
 
     public static String getFileNameFromPath(String filePath) {
         String[] res = filePath.split(Pattern.quote("/"));
-        return res[res.length-1];
+        return res[res.length - 1];
     }
 
     public static File getFileFromPath(String filePath) {
@@ -58,10 +61,6 @@ class myUtils {
 
     public static boolean isTrusy(String str) {
         return !(str == null || str.isEmpty());
-    }
-
-    public static boolean checkShortUID(String completeID, String shortID) {
-        return completeID.startsWith(shortID);
     }
 
 }

@@ -1,14 +1,17 @@
 package gitlet;
+import static gitlet.Utils.*;
+import static gitlet.MyUtils.*;
 
 import java.io.File;
 import java.io.Serializable;
-import java.util.Date;
 
-import static gitlet.Repository.GITLET_DIR;
-import static gitlet.Repository.OBJECT_DIR;
-import static gitlet.Utils.*;
-import static gitlet.Commit.*;
-import static gitlet.myUtils.*;
+
+/** Represents a gitlet blob object,
+ * which is basically a file object,
+ * but the same file with different contents are regarded as different blobs
+ * so that it's able to save and recover different versions of the same file across commits
+ *  @author Grebeth.P
+ */
 
 public class Blob implements Serializable {
     private File fileInCWD;
@@ -23,7 +26,10 @@ public class Blob implements Serializable {
         this.blobID = sha1(this.filePath, filecontent);
     }
 
-    public byte[] getContent() {return filecontent; }
+    public byte[] getContent() {
+        return filecontent;
+    }
+
     public String getID() {
         return blobID;
     }
@@ -32,10 +38,13 @@ public class Blob implements Serializable {
         return filePath;
     }
 
-    public File getFileInCWD() { return fileInCWD; }
+    public File getFileInCWD() {
+        return fileInCWD;
+    }
 
     public void saveBlob() {
         File outFile = getObjectFilebyID(blobID);
         writeObject(outFile, this);
     }
+
 }
