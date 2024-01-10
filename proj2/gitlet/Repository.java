@@ -59,7 +59,8 @@ public class Repository {
 
     public static void initiateGitlet() {
         if (GITLET_DIR.exists()) {
-            System.out.println("A Gitlet version-control system already exists in the current directory");
+            String msg = "A Gitlet version-control system already exists in the current directory";
+            System.out.println(msg);
             System.exit(0);
         }
         setupPersistence();
@@ -107,7 +108,8 @@ public class Repository {
         b.saveBlob();
         Index stagedArea = getStagedArea();
         HashMap<String, String> commitFileMap = getCurrCommit().getBlobs();
-        if (commitFileMap.containsKey(b.getFilePath()) && commitFileMap.get(b.getFilePath()).equals(b.getID())) {
+        if (commitFileMap.containsKey(b.getFilePath())
+                && commitFileMap.get(b.getFilePath()).equals(b.getID())) {
             stagedArea.removeFromStagedToAdd(b.getFilePath());
             stagedArea.removeFromStagedToRemove(b.getFilePath());
         } else {
@@ -124,11 +126,12 @@ public class Repository {
     // test function for debugging purpose
     public static void test(String toPrint) {
         if (toPrint.equals("index")) {
-            System.out.println(getStagedArea().getStagedToAdd()); // own test
-            System.out.println(getStagedArea().getStagedToRemove()); // own test
+            System.out.println(getStagedArea().getStagedToAdd());
+            System.out.println(getStagedArea().getStagedToRemove());
         } else if (toPrint.equals("currCommit")) {
-            System.out.println(getCurrCommit().getBlobs()); // own test
-            System.out.println(readContentsAsString(join(HEADS_DIR, getCurrBranch()))); // own test
+            System.out.println(getCurrCommit().getBlobs());
+            String toPrint1 = readContentsAsString(join(HEADS_DIR, getCurrBranch()));
+            System.out.println(toPrint1);
         }
     }
 
@@ -140,7 +143,8 @@ public class Repository {
 
         // abort if the staging area is clear
         Index stagedArea = getStagedArea();
-        if (stagedArea.getStagedToAdd().isEmpty() && stagedArea.getStagedToRemove().isEmpty()) {
+        if (stagedArea.getStagedToAdd().isEmpty()
+                && stagedArea.getStagedToRemove().isEmpty()) {
             System.out.println("No changes added to the commit.");
             System.exit(0);
         } else if (commitMsg.isEmpty()) {
@@ -190,7 +194,8 @@ public class Repository {
         if (stagedArea.getStagedToAdd().containsKey(f.getPath())) {
             stagedArea.removeFromStagedToAdd(f.getPath());
         } else if (currCommit.getBlobs().containsKey(f.getPath())) {
-            Blob b = readObject(MyUtils.getObjectFilebyID(currCommit.getBlobs().get(f.getPath())), Blob.class);
+            String blobID = currCommit.getBlobs().get(f.getPath());
+            Blob b = readObject(getObjectFilebyID(blobID), Blob.class);
             stagedArea.stagedToRemove(b);
         } else {
             System.out.println("No reason to remove the file.");
@@ -201,14 +206,14 @@ public class Repository {
 
     public static void displayLog() {
         currCommit = getCurrCommit();
-        List<String> firstParents = currCommit.getParents();
         Commit commitToDisplay = currCommit;
         while (commitToDisplay != null) {
             printLog(commitToDisplay);
             if (commitToDisplay.getParents().isEmpty()) {
                 commitToDisplay = null;
             } else {
-                commitToDisplay = getObjectbyID(commitToDisplay.getParents().get(0), Commit.class);
+                String tempCommitID = commitToDisplay.getParents().get(0);
+                commitToDisplay = getObjectbyID(tempCommitID, Commit.class);
             }
         }
     }
@@ -242,7 +247,9 @@ public class Repository {
                 File f = join(folder, ID);
                 try {
                     Commit c = readObject(f, Commit.class);
-                    if (c.getCommitMsg().equals(commitMsg)) {commitIdList.add(c.getCommitID()); }
+                    if (c.getCommitMsg().equals(commitMsg)) {
+                        commitIdList.add(c.getCommitID());
+                    }
                 } catch (Exception ignore) {}
             }
         }
@@ -320,8 +327,8 @@ public class Repository {
     }
 
     private static List<String> getUnstagedFiles() {
-        List<String> res = getUnstagedFilesfromHashmap(getStagedArea().getStagedToAdd());
-        for (String entry: getUnstagedFilesfromHashmap(getCurrCommit().getBlobs())) {
+        List<String> res = UnstagedFilesfromMap(getStagedArea().getStagedToAdd());
+        for (String entry: UnstagedFilesfromMap(getCurrCommit().getBlobs())) {
             String[] tempParts = entry.split(Pattern.quote(" "));
             String filePath = tempParts[0];
             if (!getStagedArea().getStagedToRemove().containsKey(filePath)
@@ -334,7 +341,7 @@ public class Repository {
     }
 
     // a helper function for above to shorten codes
-    private static List<String> getUnstagedFilesfromHashmap(HashMap<String, String> map) {
+    private static List<String> UnstagedFilesfromMap(HashMap<String, String> map) {
         List<String> res = new ArrayList<>();
         for (Map.Entry<String, String> entry: map.entrySet()) {
             String filePath = entry.getKey();
@@ -427,7 +434,8 @@ public class Repository {
         for (File f: CWD.listFiles()) {
             if (c.getBlobs().containsKey(f.getPath())
                     && !getCurrCommit().getBlobs().containsKey(f.getPath())) {
-                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                String m = "There is an untracked file in the way; delete it, or add and commit it first.";
+                System.out.println(m);
                 System.exit(0);
             }
         }
@@ -559,7 +567,8 @@ public class Repository {
             }
         }
 
-        newCommit("Merged " + branchName + " into " + getCurrBranch() + ".", mCommit.getCommitID());
+        newCommit("Merged " + branchName + " into " +
+                getCurrBranch() + ".", mCommit.getCommitID());
 
     }
 

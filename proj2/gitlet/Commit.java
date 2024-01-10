@@ -12,7 +12,8 @@ import java.util.*;
 /** Represents a gitlet commit object.
  *
  * serves as the key dot in the DAG graph structured;
- * captures the current snapshot of all the files and respective contents when this new commit is created
+ * captures the current snapshot of all the files and respective
+ * contents when this new commit is created
  *
  *  @author Grebeth.P
  */
