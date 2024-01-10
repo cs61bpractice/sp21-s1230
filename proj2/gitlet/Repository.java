@@ -545,13 +545,13 @@ public class Repository {
         for (Map.Entry<String, String> entry : splitPoint.getBlobs().entrySet()) {
             String key = entry.getKey();
             if (!mCommit.getBlobs().containsKey(key)) {
-                if (currCommit.getBlobs().containsKey(key)) {
-                    if (currCommit.getBlobs().get(key).equals(entry.getValue())) {
+                if (cCommit.getBlobs().containsKey(key)) {
+                    if (cCommit.getBlobs().get(key).equals(entry.getValue())) {
                         // 2-1 situation: when we need to remove as given branch did this
                         removeFile(getFileNameFromPath(key));
                     } else {
                         // 2-2 situation: conflict also, but only exist in currBranch
-                        Blob currBranchVersion = getObjectbyID(currCommit.getBlobs().get(key), Blob.class);
+                        Blob currBranchVersion = getObjectbyID(cCommit.getBlobs().get(key), Blob.class);
                         String currFileContent = convertBytesToString(currBranchVersion.getContent());
                         mergeConflictFilesContent(currFileContent, "", key);
                     }
@@ -585,38 +585,50 @@ public class Repository {
     }
 
     private static Commit findSplitPoint(Commit mCommit) {
-        HashSet<String> set = listOfCommitsWithDepth(getCurrCommit());
+        HashMap<String, Integer> ancestorsWithDepth = listOfCommitsWithDepth(getCurrCommit());
         ArrayList<String> level = new ArrayList<>();
         level.add(mCommit.getCommitID());
         while (!level.isEmpty()) {
             ArrayList<String> newLevel = new ArrayList<>();
+            HashMap<Integer, String> tempRes = new HashMap<>();
             for (String id: level) {
-                if (set.contains(id)) {
-                    return getObjectbyID(id, Commit.class);
+                if (ancestorsWithDepth.containsKey(id)) {
+                    tempRes.put(ancestorsWithDepth.get(id), id);
                 } else {
-                    for (String parentId: getObjectbyID(id, Commit.class).getParents()) {
-                        newLevel.add(parentId);
-                    }
+                    newLevel.addAll(getObjectbyID(id, Commit.class).getParents());
                 }
+            }
+            if (!tempRes.isEmpty()) {
+                Integer minKey = Collections.min(tempRes.keySet());
+                String id = tempRes.get(minKey);
+                return getObjectbyID(id, Commit.class);
             }
             level = newLevel;
         }
         return new Commit(); // will not be incur; to fulfill Java compiling requirements
     }
 
-    private static HashSet<String> listOfCommitsWithDepth(Commit c) {
-        HashSet<String> set = new HashSet<>();
-        Queue<Commit> q = new LinkedList<Commit>();
-        q.add(c);
+    private static HashMap<String, Integer> listOfCommitsWithDepth(Commit c) {
+        HashMap<String, Integer> res = new HashMap<>();
+        Queue<ArrayList<Object>> q = new LinkedList<>();
+        ArrayList<Object> initPair = new ArrayList<>();
+        initPair.add(c);
+        initPair.add(0);
+        q.add(initPair);
         while (!q.isEmpty()) {
-            Commit currC = q.remove();
-            set.add(currC.getCommitID());
+            ArrayList<Object> currPair = q.remove();
+            Commit currC = (Commit) currPair.get(0);
+            Integer lvl = (Integer) currPair.get(1);
+            res.put(currC.getCommitID(), lvl);
             for (String id: currC.getParents()) {
                 Commit p = getObjectbyID(id, Commit.class);
-                q.add(p);
+                ArrayList<Object> newPair = new ArrayList<>();
+                newPair.add(p);
+                newPair.add(lvl+1);
+                q.add(newPair);
             }
         }
-        return set;
+        return res;
     }
 
     private static void checkUncommitedChanges() {
