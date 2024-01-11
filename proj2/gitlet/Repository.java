@@ -163,7 +163,9 @@ public class Repository {
         List<String> parents = new ArrayList<>();
         currCommit = getCurrCommit();
         parents.add(currCommit.getCommitID());
-        if (isTrusy(mCommitID)) {parents.add(mCommitID); }
+        if (isTrusy(mCommitID)) {
+            parents.add(mCommitID);
+        }
         return parents;
     }
 
@@ -230,11 +232,9 @@ public class Repository {
         for (File folder: OBJECT_DIR.listFiles()) {
             for (String id: plainFilenamesIn(folder)) {
                 File f = join(folder, id);
-                try {
+                if (commitOrBlob(f).equals("Commit")) {
                     Commit c = readObject(f, Commit.class);
                     printLog(c);
-                } catch (Exception ignore) {
-                    // ignore the exception cases
                 }
             }
         }
@@ -243,14 +243,14 @@ public class Repository {
     public static void findCommitsWithMsg(String commitMsg) {
         List<String> commitIdList = new ArrayList<>();
         for (File folder: OBJECT_DIR.listFiles()) {
-            for (String ID: plainFilenamesIn(folder)) {
-                File f = join(folder, ID);
-                try {
+            for (String id: plainFilenamesIn(folder)) {
+                File f = join(folder, id);
+                if (commitOrBlob(f).equals("Commit")) {
                     Commit c = readObject(f, Commit.class);
                     if (c.getCommitMsg().equals(commitMsg)) {
                         commitIdList.add(c.getCommitID());
                     }
-                } catch (Exception ignore) {}
+                }
             }
         }
         printCommitIDList(commitIdList);
@@ -300,7 +300,9 @@ public class Repository {
             }
         }
         Collections.sort(res);
-        for (String fileName: res) {System.out.println(fileName);}
+        for (String fileName: res) {
+            System.out.println(fileName);
+        }
     }
 
     private static void displayBranches() {
@@ -308,7 +310,9 @@ public class Repository {
         for (String branch: plainFilenamesIn(HEADS_DIR)) {
             if (currBranch.equals(branch)) {
                 System.out.printf("*%s%n", currBranch);
-            } else {System.out.println(branch); }
+            } else {
+                System.out.println(branch);
+            }
         }
     }
 
@@ -327,13 +331,13 @@ public class Repository {
     }
 
     private static List<String> getUnstagedFiles() {
-        List<String> res = UnstagedFilesfromMap(getStagedArea().getStagedToAdd());
-        for (String entry: UnstagedFilesfromMap(getCurrCommit().getBlobs())) {
+        List<String> res = unstagedFilesfromMap(getStagedArea().getStagedToAdd());
+        for (String entry: unstagedFilesfromMap(getCurrCommit().getBlobs())) {
             String[] tempParts = entry.split(Pattern.quote(" "));
             String filePath = tempParts[0];
             if (!getStagedArea().getStagedToRemove().containsKey(filePath)
                     && !getStagedArea().getStagedToAdd().containsKey(filePath)) {
-                res.add(filePath+" "+tempParts[1]);
+                res.add(filePath + " " + tempParts[1]);
             }
         }
         Collections.sort(res);
@@ -341,7 +345,7 @@ public class Repository {
     }
 
     // a helper function for above to shorten codes
-    private static List<String> UnstagedFilesfromMap(HashMap<String, String> map) {
+    private static List<String> unstagedFilesfromMap(HashMap<String, String> map) {
         List<String> res = new ArrayList<>();
         for (Map.Entry<String, String> entry: map.entrySet()) {
             String filePath = entry.getKey();
@@ -350,11 +354,11 @@ public class Repository {
 
             // if the file does not exist in CWD or the version is diff with CWD version
             if (!fileInCWD.exists()) {
-                res.add(filePath+" (deleted)");
+                res.add(filePath + " (deleted)");
             } else {
                 String fileContentInCWD = sha1(filePath, readContents(fileInCWD));
                 if (!fileContent.equals(fileContentInCWD)) {
-                    res.add(filePath+" (modified)");
+                    res.add(filePath + " (modified)");
                 }
             }
         }
@@ -434,8 +438,9 @@ public class Repository {
         for (File f: CWD.listFiles()) {
             if (c.getBlobs().containsKey(f.getPath())
                     && !getCurrCommit().getBlobs().containsKey(f.getPath())) {
-                String m = "There is an untracked file in the way; delete it, or add and commit it first.";
-                System.out.println(m);
+                String m1 = "There is an untracked file in the way; ";
+                String m2 = "delete it, or add and commit it first.";
+                System.out.println(m1 + m2);
                 System.exit(0);
             }
         }
@@ -518,22 +523,29 @@ public class Repository {
         for (Map.Entry<String, String> entry : mCommit.getBlobs().entrySet()) {
             String mKey = entry.getKey();
             // 1-1 situation to stage new files from given branch
-            if ((!cCommit.getBlobs().containsKey(mKey)
+            if (
+                    (!cCommit.getBlobs().containsKey(mKey)
                             && !splitPoint.getBlobs().containsKey(mKey))
-                    || (cCommit.getBlobs().containsKey(mKey)
+                    ||
+                    (cCommit.getBlobs().containsKey(mKey)
                             && splitPoint.getBlobs().containsKey(mKey)
                             && !splitPoint.getBlobs().get(mKey).equals(entry.getValue())
-                            && splitPoint.getBlobs().get(mKey).equals(cCommit.getBlobs().get(mKey)))) {
-                checkoutToCommitsFile(mCommit.getCommitID(), getFileNameFromPath(mKey));
+                            && splitPoint.getBlobs().get(mKey).equals(cCommit.getBlobs().get(mKey)))
+            ) {
+                checkoutToCommitsFile(mCommit.getCommitID(),
+                        getFileNameFromPath(mKey));
                 addToStage(getFileNameFromPath(mKey));
-            } else if ((!splitPoint.getBlobs().containsKey(mKey)
-                                && cCommit.getBlobs().containsKey(mKey)
-                                && !cCommit.getBlobs().get(mKey).equals(entry.getValue()))
-                        || (splitPoint.getBlobs().containsKey(mKey)
-                                && cCommit.getBlobs().containsKey(mKey)
-                                && new HashSet<>(Arrays.asList(cCommit.getBlobs().get(mKey),
+            } else if (
+                    (!splitPoint.getBlobs().containsKey(mKey)
+                            && cCommit.getBlobs().containsKey(mKey)
+                            && !cCommit.getBlobs().get(mKey).equals(entry.getValue()))
+                    ||
+                    (splitPoint.getBlobs().containsKey(mKey)
+                            && cCommit.getBlobs().containsKey(mKey)
+                            && new HashSet<>(Arrays.asList(cCommit.getBlobs().get(mKey),
                                                 entry.getValue(),
-                                                splitPoint.getBlobs().get(mKey))).size() == 3)) {
+                                                splitPoint.getBlobs().get(mKey))).size() == 3)
+            ) {
                 // 1-2 situation when both have same file and file contents have conflicts
                 Blob currBranchVersion = getObjectbyID(cCommit.getBlobs().get(mKey), Blob.class);
                 String currFileContent = convertBytesToString(currBranchVersion.getContent());
@@ -559,20 +571,23 @@ public class Repository {
                         removeFile(getFileNameFromPath(key));
                     } else {
                         // 2-2 situation: conflict also, but only exist in currBranch
-                        Blob currBranchVersion = getObjectbyID(cCommit.getBlobs().get(key), Blob.class);
-                        String currFileContent = convertBytesToString(currBranchVersion.getContent());
+                        String id = cCommit.getBlobs().get(key);
+                        Blob currBranchVersion = getObjectbyID(id, Blob.class);
+                        byte[] c = currBranchVersion.getContent();
+                        String currFileContent = convertBytesToString(c);
                         mergeConflictFilesContent(currFileContent, "", key);
                     }
                 }
             }
         }
 
-        newCommit("Merged " + branchName + " into " +
-                getCurrBranch() + ".", mCommit.getCommitID());
+        newCommit("Merged " + branchName + " into "
+                + getCurrBranch() + ".", mCommit.getCommitID());
 
     }
 
-    private static void mergeConflictFilesContent(String content1, String content2, String filePath) {
+    private static void mergeConflictFilesContent(String content1,
+                                                  String content2, String filePath) {
         String newfile = "<<<<<<< HEAD\n";
         newfile += content1;
         newfile += "=======\n";
@@ -633,7 +648,7 @@ public class Repository {
                 Commit p = getObjectbyID(id, Commit.class);
                 ArrayList<Object> newPair = new ArrayList<>();
                 newPair.add(p);
-                newPair.add(lvl+1);
+                newPair.add(lvl + 1);
                 q.add(newPair);
             }
         }

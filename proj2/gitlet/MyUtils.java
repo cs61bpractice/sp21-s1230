@@ -1,14 +1,13 @@
 package gitlet;
 import static gitlet.Utils.*;
 
-import java.io.File;
-import java.io.Serializable;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
-
+import java.io.ObjectInputStream;
 
 /** Utilities but built by my own - to separate from the given utilities
  *
@@ -61,6 +60,20 @@ class MyUtils {
 
     public static boolean isTrusy(String str) {
         return !(str == null || str.isEmpty());
+    }
+
+    public static String commitOrBlob(File file) {
+        try {
+            ObjectInputStream in =
+                    new ObjectInputStream(new FileInputStream(file));
+            Commit result = (Commit) in.readObject();
+        } catch (IOException | ClassNotFoundException excp) {
+            throw new IllegalArgumentException(excp.getMessage());
+        } catch (ClassCastException excp) {
+            return "Blob";
+        }
+
+        return "Commit";
     }
 
 }
