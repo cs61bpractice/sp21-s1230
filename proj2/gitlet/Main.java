@@ -89,6 +89,22 @@ public class Main {
                 validateNumArgs("test", args, 2);
                 Repository.test(args[1]);
                 break;
+            case "add-remote":
+                validateNumArgs("add-remote", args, 2);
+                int endIndex = args[1].length()-8;
+                Repository.addRemote(args[0], args[1].substring(0, endIndex));
+            case "rm-remote":
+                validateNumArgs("rm-remote", args, 1);
+                Repository.rmRemote(args[0]);
+            case "push":
+                validateNumArgs("push", args, 2);
+                Repository.push(args[0], args[1]);
+            case "pull":
+                validateNumArgs("pull", args, 2);
+                Repository.pull(args[0], args[1]);
+            case "fetch":
+                validateNumArgs("fetch", args, 2);
+                Repository.fetch(args[0], args[1]);
             default:
                 System.out.println("No command with that name exists");
                 break;
@@ -101,6 +117,12 @@ public class Main {
             System.exit(0);
         } else if (!cmd.equals("init")) {
             checkFolderExistence();
+        }
+        if (cmd.equals("add-remote")) {
+            if (!args[1].endsWith("/.gitlet")) {
+                System.out.println("Invalid server repository name.");
+                System.exit(0);
+            }
         }
     }
 

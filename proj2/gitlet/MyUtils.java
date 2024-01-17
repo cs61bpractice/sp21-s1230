@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.io.ObjectInputStream;
+import java.nio.file.*;
 
 /** Utilities but built by my own - to separate from the given utilities
  *
@@ -74,6 +75,29 @@ class MyUtils {
         }
 
         return "Commit";
+    }
+
+    public static String connectStringPaths(String[] paths) {
+        StringBuilder res = new StringBuilder(paths[0]);
+        for (int i = 1; i < paths.length; i++) {
+            res.append(File.separator).append(paths[i]);
+        }
+        return res.toString();
+    }
+
+    public static boolean objectExistence(String objectId, File objectFolder) {
+        File l2Folder = join(objectFolder, objectId.substring(0, 3));
+        if (!l2Folder.exists()) {
+            return false;
+        }
+
+        for (File f: l2Folder.listFiles()) { // if listFiles -> null, it skips the for loop
+            if (f.getName().startsWith(objectId.substring(3))) {
+               return true;
+            }
+        }
+
+        return false;
     }
 
 }

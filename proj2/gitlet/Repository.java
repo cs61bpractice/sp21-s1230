@@ -634,21 +634,21 @@ public class Repository {
 
     private static HashMap<String, Integer> listOfCommitsWithDepth(Commit c) {
         HashMap<String, Integer> res = new HashMap<>();
-        Queue<ArrayList<Object>> q = new LinkedList<>();
-        ArrayList<Object> initPair = new ArrayList<>();
-        initPair.add(c);
-        initPair.add(0);
+        Queue<Object[]> q = new LinkedList<>();
+        Object[] initPair = new Object[2];
+        initPair[0] = c;
+        initPair[1] = 0;
         q.add(initPair);
         while (!q.isEmpty()) {
-            ArrayList<Object> currPair = q.remove();
-            Commit currC = (Commit) currPair.get(0);
-            Integer lvl = (Integer) currPair.get(1);
+            Object[] currPair = q.remove();
+            Commit currC = (Commit) currPair[0];
+            Integer lvl = (Integer) currPair[1];
             res.put(currC.getCommitID(), lvl);
             for (String id: currC.getParents()) {
                 Commit p = getObjectbyID(id, Commit.class);
-                ArrayList<Object> newPair = new ArrayList<>();
-                newPair.add(p);
-                newPair.add(lvl + 1);
+                Object[] newPair = new Object[2];
+                newPair[0] = p;
+                newPair[1] = lvl + 1;
                 q.add(newPair);
             }
         }
@@ -661,6 +661,152 @@ public class Repository {
             System.out.println("You have uncommitted changes.");
             System.exit(0);
         }
+    }
+
+    public static void addRemote(String remoteName, String remoteDir) {
+        File remoteFile = join(GITLET_DIR, "remote");
+        Remote remote = readObject(remoteFile, Remote.class);
+
+        if (remote.remoteMap.containsKey(remoteName)) {
+            System.out.println("A remote with that name already exists.");
+            System.exit(0);
+        }
+
+        remote.addRemote(remoteName, remoteDir);
+        remote.saveRemote();
+    }
+
+    public static void rmRemote(String remoteName) {
+        File remoteFile = join(GITLET_DIR, "remote");
+        Remote remote = readObject(remoteFile, Remote.class);
+
+        if (!remote.remoteMap.containsKey(remoteName)) {
+            System.out.println("A remote with that name does not exist.");
+            System.exit(0);
+        }
+
+        remote.rmRemote(remoteName);
+        remote.saveRemote();
+    }
+
+    public static void push(String remoteName, String remoteBranch) {
+        // read remote object and check if we have this remote .gitlet dir
+        File remoteFile = join(GITLET_DIR, "remote");
+        Remote remote = readObject(remoteFile, Remote.class);
+        if (!remote.remoteMap.containsKey(remoteName)) {
+            System.out.println("Remote directory not found.");
+            System.exit(0);
+        }
+
+        // get targetId i.e. head at the remote specific branch
+        File remoteDir = remote.remoteMap.get(remoteName);
+        File targetFile = join(remoteDir, "refs", "heads", remoteBranch);
+        String targetId = readContentsAsString(targetFile);
+        if (!findHistoricCommit(getCurrCommitID(), targetId)) {
+            System.out.println("Please pull down remote changes before pushing.");
+            System.exit(0);
+        }
+
+        // append future commits
+        Commit targetCommit = getObjectbyID(targetId, Commit.class);
+        Set<String> commitIdSet = listOfCommitsWithDepth(targetCommit).keySet();
+        Queue<String> queue = new LinkedList<>();
+        queue.add(getCurrCommitID());
+        HashSet<String> blobIdSet = new HashSet<>();
+        while (!queue.isEmpty()) {
+            String tempCommitId = queue.remove();
+            if (!commitIdSet.contains(tempCommitId)) {
+                File outFile = join(remoteDir, "objects",
+                        tempCommitId.substring(0,3), tempCommitId.substring(3));
+                Commit commitToWrite = getObjectbyID(tempCommitId, Commit.class);
+                writeObject(outFile, commitToWrite);
+                blobIdSet.addAll(commitToWrite.getBlobs().values());
+                queue.addAll(commitToWrite.getParents());
+            }
+        }
+
+        for (String blobId: blobIdSet) {
+            if (!objectExistence(blobId, OBJECT_DIR)) {
+                File outFile = getObjectFilebyID(blobId);
+                writeObject(outFile, getObjectbyID(blobId, Blob.class));
+            }
+        }
+
+    }
+
+    public static boolean findHistoricCommit(String startCommitID, String targetId) {
+        Queue<String> queue = new LinkedList<>();
+        queue.add(startCommitID);
+        while (!queue.isEmpty()) {
+            String tempCommitID = queue.remove();
+            if (tempCommitID.equals(targetId)) {
+                return true;
+            }
+            Commit tempCommit = getObjectbyID(tempCommitID, Commit.class);
+            queue.addAll(tempCommit.getParents());
+        }
+        return false;
+    }
+
+    public static void pull(String remoteName, String remoteBranch) {
+        fetch(remoteName, remoteBranch);
+        mergeToBranch(remoteName + "/" + remoteBranch);
+    }
+
+    public static void fetch(String remoteName, String remoteBranch) {
+        File remoteFile = join(GITLET_DIR, "remote");
+        Remote remote = readObject(remoteFile, Remote.class);
+
+        if (!remote.remoteMap.containsKey(remoteName)) {
+            System.out.println("Remote directory not found.");
+            System.exit(0);
+        }
+
+        // get the branch file under heads_dir in remote dir
+        File toCopy = remote.remoteMap.get(remoteName);
+        File startFile = new File(toCopy.getPath() + File.separator + "refs"
+                + File.separator + "heads" + File.separator + remoteBranch);
+
+        if (!startFile.exists()) {
+            System.out.println("That remote does not have that branch.");
+            System.exit(0);
+        }
+        String startCommitID = readContentsAsString(startFile);
+
+        // create the new branch and change the head to the new branch
+        createNewBranch(remoteName + "/" + remoteBranch);
+        File newBranch = join(HEADS_DIR, remoteName + "/" + remoteBranch);
+        writeContents(newBranch, startCommitID);
+
+        // copy all the commits / blobs from startCommit to the current .gitlet dir
+        Queue<String> queue = new LinkedList<>();
+        queue.add(startCommitID);
+        HashSet<String> blobIdSet = new HashSet<>();
+        while (!queue.isEmpty()) {
+            String tempCommitID = queue.remove();
+            Commit tempCommit = getObjectbyID(tempCommitID, Commit.class);
+
+            // write the object not in curr repo to the .gitlet folder
+            if (!objectExistence(tempCommitID, OBJECT_DIR)) {
+                File outFile = getObjectFilebyID(tempCommitID);
+                writeObject(outFile, tempCommit);
+            }
+
+            // add the commits on this branch to the commitsQueue
+            queue.addAll(tempCommit.getParents());
+
+            // add all the blobs id of this commit into a set
+            // to finalize it after the while loop
+            blobIdSet.addAll(tempCommit.getBlobs().values());
+        }
+
+        for (String blobId: blobIdSet) {
+            if (!objectExistence(blobId, OBJECT_DIR)) {
+                File outFile = getObjectFilebyID(blobId);
+                writeObject(outFile, getObjectbyID(blobId, Blob.class));
+            }
+        }
+
     }
 
 }
