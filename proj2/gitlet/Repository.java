@@ -505,7 +505,7 @@ public class Repository {
 
     public static void resetToCommit(String commitID, File gitletDir) {
         File tempObjectDir = join(gitletDir, "objects");
-        File tempHead = join(gitletDir, "head");
+        File tempHead = join(gitletDir, "HEAD");
 
         Commit c = getObjectbyID(commitID, Commit.class, tempObjectDir);
         checkPossibleRewritesToUntrackedFile(c, gitletDir);
