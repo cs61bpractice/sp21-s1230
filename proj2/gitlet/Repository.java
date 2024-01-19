@@ -443,7 +443,8 @@ public class Repository {
 
     private static void checkPossibleRewritesToUntrackedFile(Commit c, File gitletDir) {
         int tempLength = gitletDir.getAbsolutePath().length();
-        File tempCwd = gitletDir.getParentFile();
+        String parentPath = gitletDir.getAbsolutePath().substring(0, tempLength - 8);
+        File tempCwd = new File(parentPath);
 
         for (String fileName: plainFilenamesIn(tempCwd)) {
             File f = join(tempCwd, fileName);
