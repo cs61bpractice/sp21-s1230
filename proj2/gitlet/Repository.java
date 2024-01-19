@@ -442,8 +442,8 @@ public class Repository {
     }
 
     private static void checkPossibleRewritesToUntrackedFile(Commit c, File gitletDir) {
-        int tempLength = gitletDir.getPath().length();
-        String parentPath = gitletDir.getPath().substring(0, tempLength-8);
+        int tempLength = gitletDir.getAbsolutePath().length();
+        String parentPath = gitletDir.getAbsolutePath().substring(0, tempLength-8);
         File tempCwd = new File(parentPath);
 
         for (File f: tempCwd.listFiles()) {
@@ -519,8 +519,8 @@ public class Repository {
     }
 
     private static void changeBranchHeadToGivenCommit(String branch,
-                                                      String commitID, File Heads) {
-        writeContents(join(Heads, branch), commitID);
+                                                      String commitID, File headsDir) {
+        writeContents(join(headsDir, branch), commitID);
     }
 
     public static void mergeToBranch(String branchName) {
@@ -532,13 +532,9 @@ public class Repository {
         String tbranchId = readContentsAsString(tbranch);
         Commit mCommit = getObjectbyID(tbranchId, Commit.class, OBJECT_DIR);
         checkPossibleRewritesToUntrackedFile(mCommit, GITLET_DIR);
-
         Commit splitPoint = findSplitPoint(mCommit);
-        // if the split point is the same commit as the given branch / current branch
         fastMerge(splitPoint, mCommit, safeBranchName);
-        // else, continue with the conflict merge
 
-        // loop through splitpoint files
         Commit cCommit = getCurrCommit();
         for (Map.Entry<String, String> entry : mCommit.getBlobs().entrySet()) {
             String mKey = entry.getKey();
@@ -619,6 +615,7 @@ public class Repository {
         System.out.println("Encountered a merge conflict.");
     }
 
+    // if the split point is the same commit as the given branch / current branch
     private static void fastMerge(Commit splitPoint, Commit mCommit, String branchName) {
         if (splitPoint.getCommitID().equals(mCommit.getCommitID())) {
             System.out.println("Given branch is an ancestor of the current branch.");
@@ -631,15 +628,15 @@ public class Repository {
     }
 
     private static Commit findSplitPoint(Commit mCommit) {
-        HashMap<String, Integer> ancestorsWithDepth = listOfCommitsWithDepth(getCurrCommit(), OBJECT_DIR);
+        HashMap<String, Integer> ancestors = commitsWithDepth(getCurrCommit(), OBJECT_DIR);
         ArrayList<String> level = new ArrayList<>();
         level.add(mCommit.getCommitID());
         while (!level.isEmpty()) {
             ArrayList<String> newLevel = new ArrayList<>();
             HashMap<Integer, String> tempRes = new HashMap<>();
             for (String id: level) {
-                if (ancestorsWithDepth.containsKey(id)) {
-                    tempRes.put(ancestorsWithDepth.get(id), id);
+                if (ancestors.containsKey(id)) {
+                    tempRes.put(ancestors.get(id), id);
                 } else {
                     Commit tempC = getObjectbyID(id, Commit.class, OBJECT_DIR);
                     newLevel.addAll(tempC.getParents());
@@ -655,7 +652,7 @@ public class Repository {
         return new Commit(); // will not be incur; to fulfill Java compiling requirements
     }
 
-    private static HashMap<String, Integer> listOfCommitsWithDepth(Commit c, File objectDir) {
+    private static HashMap<String, Integer> commitsWithDepth(Commit c, File objectDir) {
         HashMap<String, Integer> res = new HashMap<>();
         Queue<Object[]> q = new LinkedList<>();
         Object[] initPair = new Object[2];
@@ -735,7 +732,7 @@ public class Repository {
 
         // append future commits
         Commit targetCommit = getObjectbyID(targetId, Commit.class, remoteObjects);
-        Set<String> commitIdSet = listOfCommitsWithDepth(targetCommit, remoteObjects).keySet();
+        Set<String> commitIdSet = commitsWithDepth(targetCommit, remoteObjects).keySet();
         Queue<String> queue = new LinkedList<>();
         queue.add(getCurrCommitID());
         HashSet<String> blobIdSet = new HashSet<>();
@@ -802,7 +799,7 @@ public class Repository {
 
         // create the new branch and change the head to the new branch
         File newBranch = join(HEADS_DIR, remoteName + "_" + safeRemoteBranch);
-        if (newBranch.exists()) { newBranch.delete(); }
+        newBranch.delete();
         createNewBranch(remoteName + "_" + safeRemoteBranch);
         writeContents(newBranch, startCommitID);
 

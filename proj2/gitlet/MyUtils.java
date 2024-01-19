@@ -16,8 +16,8 @@ import java.nio.file.*;
  */
 
 class MyUtils {
-    public static File getObjectFilebyID(String id, File object_dir) {
-        File objectFolder = join(object_dir, id.substring(0, 3));
+    public static File getObjectFilebyID(String id, File objectDir) {
+        File objectFolder = join(objectDir, id.substring(0, 3));
         objectFolder.mkdir();
         if (id.length() < 16) {
             for (File f: objectFolder.listFiles()) {
@@ -29,8 +29,9 @@ class MyUtils {
         return new File(objectFolder, id.substring(3));
     }
 
-    public static <T extends Serializable> T getObjectbyID(String id, Class<T> expectedClass, File object_dir) {
-        File f = getObjectFilebyID(id, object_dir);
+    public static <T extends Serializable> T getObjectbyID(String id,
+                                                           Class<T> expectedClass, File objectDir) {
+        File f = getObjectFilebyID(id, objectDir);
         if (!f.exists()) {
             System.out.println("No commit with that id exists.");
             // here actually should be both for blobs and commits,
@@ -91,7 +92,8 @@ class MyUtils {
             return false;
         }
 
-        for (File f: l2Folder.listFiles()) { // if listFiles -> null, it skips the for loop
+        for (File f: l2Folder.listFiles()) {
+            // if listFiles -> null, it skips the for loop
             if (f.getName().startsWith(objectId.substring(3))) {
                return true;
             }

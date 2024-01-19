@@ -87,8 +87,8 @@ public class Commit implements Serializable {
         writeObject(outFile, this);
     }
 
-    public void updateBlobs(HashMap<String, String> blobs) {
-        this.blobs = blobs;
+    public void updateBlobs(HashMap<String, String> newBlobs) {
+        this.blobs = newBlobs;
         saveCommit();
     }
 
