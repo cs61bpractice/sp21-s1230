@@ -510,7 +510,7 @@ public class Repository {
         File tempHead = join(gitletDir, "HEAD");
 
         Commit c = getObjectbyID(commitID, Commit.class, tempObjectDir);
-        checkPossibleRewritesToUntrackedFile(c, gitletDir);
+        // checkPossibleRewritesToUntrackedFile(c, gitletDir);
 
         changeToCommit(c);
         changeBranchHeadToGivenCommit(readContentsAsString(tempHead), commitID,
