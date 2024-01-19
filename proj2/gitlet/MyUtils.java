@@ -95,7 +95,7 @@ class MyUtils {
         for (File f: l2Folder.listFiles()) {
             // if listFiles -> null, it skips the for loop
             if (f.getName().startsWith(objectId.substring(3))) {
-               return true;
+                return true;
             }
         }
 
