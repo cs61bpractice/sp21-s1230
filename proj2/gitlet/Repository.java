@@ -446,7 +446,8 @@ public class Repository {
         String parentPath = gitletDir.getAbsolutePath().substring(0, tempLength-8);
         File tempCwd = new File(parentPath);
 
-        for (File f: tempCwd.listFiles()) {
+        for (String fileName: plainFilenamesIn(tempCwd)) {
+            File f = join(tempCwd, fileName);
             if (c.getBlobs().containsKey(f.getPath())
                     && !getCurrCommit().getBlobs().containsKey(f.getPath())) {
                 String m1 = "There is an untracked file in the way; ";
@@ -510,7 +511,7 @@ public class Repository {
         File tempHead = join(gitletDir, "HEAD");
 
         Commit c = getObjectbyID(commitID, Commit.class, tempObjectDir);
-        // checkPossibleRewritesToUntrackedFile(c, gitletDir);
+        checkPossibleRewritesToUntrackedFile(c, gitletDir);
 
         changeToCommit(c);
         changeBranchHeadToGivenCommit(readContentsAsString(tempHead), commitID,
