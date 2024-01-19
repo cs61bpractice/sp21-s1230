@@ -43,8 +43,14 @@ public class Blob implements Serializable {
     }
 
     public void saveBlob() {
-        File outFile = getObjectFilebyID(blobID);
+        File outFile = getObjectFilebyID(blobID, Repository.OBJECT_DIR);
         writeObject(outFile, this);
+    }
+
+    public void updateBlob(File newBlob) {
+        this.fileInCWD = newBlob;
+        this.filePath = newBlob.getPath();
+        saveBlob();
     }
 
 }

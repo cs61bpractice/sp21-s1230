@@ -16,8 +16,8 @@ import java.nio.file.*;
  */
 
 class MyUtils {
-    public static File getObjectFilebyID(String id) {
-        File objectFolder = join(Repository.OBJECT_DIR, id.substring(0, 3));
+    public static File getObjectFilebyID(String id, File object_dir) {
+        File objectFolder = join(object_dir, id.substring(0, 3));
         objectFolder.mkdir();
         if (id.length() < 16) {
             for (File f: objectFolder.listFiles()) {
@@ -29,12 +29,12 @@ class MyUtils {
         return new File(objectFolder, id.substring(3));
     }
 
-    public static <T extends Serializable> T getObjectbyID(String id, Class<T> expectedClass) {
-        File f = getObjectFilebyID(id);
+    public static <T extends Serializable> T getObjectbyID(String id, Class<T> expectedClass, File object_dir) {
+        File f = getObjectFilebyID(id, object_dir);
         if (!f.exists()) {
             System.out.println("No commit with that id exists.");
             // here actually should be both for blobs and commits,
-            // // but this is to fulfill testing purpose
+            // but this is to fulfill test case purpose in project doc
             System.exit(0);
         }
         return readObject(f, expectedClass); // make sure the file exists

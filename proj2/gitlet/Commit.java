@@ -29,7 +29,6 @@ public class Commit implements Serializable {
     private HashMap<String, String> blobs;
     // own commit SHA1 ID later to generated based on the 4 parts above
     private String commitID;
-    private File commitF; // pointer pointing to the file of this commit object
 
     /**
      * Creates a dog object with the specified parameters.
@@ -84,8 +83,13 @@ public class Commit implements Serializable {
     }
 
     public void saveCommit() {
-        File outFile = getObjectFilebyID(commitID);
+        File outFile = getObjectFilebyID(commitID, Repository.OBJECT_DIR);
         writeObject(outFile, this);
+    }
+
+    public void updateBlobs(HashMap<String, String> blobs) {
+        this.blobs = blobs;
+        saveCommit();
     }
 
 }

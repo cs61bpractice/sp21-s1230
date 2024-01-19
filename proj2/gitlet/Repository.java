@@ -41,6 +41,7 @@ public class Repository {
     public static final File HEAD = new File(GITLET_DIR, "HEAD");
     // index file storing staging area
     public static final File INDEX = new File(GITLET_DIR, "index");
+    public static final File REMOTE = new File(GITLET_DIR, "remote");
     private static Commit currCommit;
 
     public static void setupPersistence() {
@@ -69,6 +70,7 @@ public class Repository {
         initHEAD();
         initOrUpdateHeads(c);
         initIndex();
+        initRemote();
     }
 
     private static Commit initCommit() {
@@ -89,6 +91,10 @@ public class Repository {
         writeObject(INDEX, new Index());
     }
 
+    private static void initRemote() {
+        writeObject(REMOTE, new Remote());
+    }
+
     private static String getCurrBranch() {
         return readContentsAsString(HEAD);
     }
@@ -97,7 +103,7 @@ public class Repository {
         return readContentsAsString(join(HEADS_DIR, getCurrBranch()));
     }
     private static Commit getCurrCommit() {
-        return getObjectbyID(getCurrCommitID(), Commit.class);
+        return getObjectbyID(getCurrCommitID(), Commit.class, OBJECT_DIR);
     }
 
     public static void addToStage(String fileName) {
@@ -106,7 +112,7 @@ public class Repository {
 
         Blob b = new Blob(f);
         b.saveBlob();
-        Index stagedArea = getStagedArea();
+        Index stagedArea = getStagedArea(INDEX);
         HashMap<String, String> commitFileMap = getCurrCommit().getBlobs();
         if (commitFileMap.containsKey(b.getFilePath())
                 && commitFileMap.get(b.getFilePath()).equals(b.getID())) {
@@ -126,8 +132,8 @@ public class Repository {
     // test function for debugging purpose
     public static void test(String toPrint) {
         if (toPrint.equals("index")) {
-            System.out.println(getStagedArea().getStagedToAdd());
-            System.out.println(getStagedArea().getStagedToRemove());
+            System.out.println(getStagedArea(INDEX).getStagedToAdd());
+            System.out.println(getStagedArea(INDEX).getStagedToRemove());
         } else if (toPrint.equals("currCommit")) {
             System.out.println(getCurrCommit().getBlobs());
             String toPrint1 = readContentsAsString(join(HEADS_DIR, getCurrBranch()));
@@ -135,14 +141,14 @@ public class Repository {
         }
     }
 
-    private static Index getStagedArea() {
-        return readObject(INDEX, Index.class);
+    private static Index getStagedArea(File idx) {
+        return readObject(idx, Index.class);
     }
 
     public static void newCommit(String commitMsg, String mCommitID) {
 
         // abort if the staging area is clear
-        Index stagedArea = getStagedArea();
+        Index stagedArea = getStagedArea(INDEX);
         if (stagedArea.getStagedToAdd().isEmpty()
                 && stagedArea.getStagedToRemove().isEmpty()) {
             System.out.println("No changes added to the commit.");
@@ -156,7 +162,7 @@ public class Repository {
         Commit c = new Commit(commitMsg, calculateParents(mCommitID), calculateBlobs());
         c.saveCommit();
         initOrUpdateHeads(c);
-        clearStagedArea();
+        clearStagedArea(INDEX);
     }
 
     private static List<String> calculateParents(String mCommitID) {
@@ -171,7 +177,7 @@ public class Repository {
 
     private static HashMap<String, String> calculateBlobs() {
         HashMap<String, String> blobs = getCurrCommit().getBlobs();
-        Index stagedArea = getStagedArea();
+        Index stagedArea = getStagedArea(INDEX);
         for (String i: stagedArea.getStagedToAdd().keySet()) {
             // update + add if any changes in staged
             blobs.put(i, stagedArea.getStagedToAdd().get(i));
@@ -182,22 +188,22 @@ public class Repository {
         return blobs;
     }
 
-    private static void clearStagedArea() {
-        Index stagedArea = getStagedArea();
+    private static void clearStagedArea(File idx) {
+        Index stagedArea = getStagedArea(idx);
         stagedArea.clearStagingArea();
         stagedArea.saveIndex();
     }
 
     public static void removeFile(String fileName) {
         File f = join(CWD, fileName);
-        Index stagedArea = getStagedArea();
+        Index stagedArea = getStagedArea(INDEX);
         currCommit = getCurrCommit();
 
         if (stagedArea.getStagedToAdd().containsKey(f.getPath())) {
             stagedArea.removeFromStagedToAdd(f.getPath());
         } else if (currCommit.getBlobs().containsKey(f.getPath())) {
             String blobID = currCommit.getBlobs().get(f.getPath());
-            Blob b = readObject(getObjectFilebyID(blobID), Blob.class);
+            Blob b = readObject(getObjectFilebyID(blobID, Repository.OBJECT_DIR), Blob.class);
             stagedArea.stagedToRemove(b);
         } else {
             System.out.println("No reason to remove the file.");
@@ -215,7 +221,7 @@ public class Repository {
                 commitToDisplay = null;
             } else {
                 String tempCommitID = commitToDisplay.getParents().get(0);
-                commitToDisplay = getObjectbyID(tempCommitID, Commit.class);
+                commitToDisplay = getObjectbyID(tempCommitID, Commit.class, OBJECT_DIR);
             }
         }
     }
@@ -273,11 +279,11 @@ public class Repository {
         System.out.println();
 
         System.out.println("=== Staged Files ===");
-        displayStagedFiles(getStagedArea().getStagedToAdd());
+        displayStagedFiles(getStagedArea(INDEX).getStagedToAdd());
         System.out.println();
 
         System.out.println("=== Removed Files ===");
-        displayStagedFiles(getStagedArea().getStagedToRemove());
+        displayStagedFiles(getStagedArea(INDEX).getStagedToRemove());
         System.out.println();
 
         System.out.println("=== Modifications Not Staged For Commit ===");
@@ -292,8 +298,8 @@ public class Repository {
     private static void displayUntrackedFiles() {
         List<String> res = new ArrayList<>();
         for (File f: CWD.listFiles()) {
-            if (!getStagedArea().getStagedToAdd().containsKey(f.getPath())
-                    && !getStagedArea().getStagedToRemove().containsKey(f.getPath())
+            if (!getStagedArea(INDEX).getStagedToAdd().containsKey(f.getPath())
+                    && !getStagedArea(INDEX).getStagedToRemove().containsKey(f.getPath())
                     && !getCurrCommit().getBlobs().containsKey(f.getPath())
                     && !f.isDirectory()) {
                 res.add(f.getName());
@@ -309,9 +315,9 @@ public class Repository {
         String currBranch = getCurrBranch();
         for (String branch: plainFilenamesIn(HEADS_DIR)) {
             if (currBranch.equals(branch)) {
-                System.out.printf("*%s%n", currBranch);
+                System.out.printf("*%s%n", currBranch.replace("_", "/"));
             } else {
-                System.out.println(branch);
+                System.out.println(branch.replace("_", "/"));
             }
         }
     }
@@ -331,12 +337,12 @@ public class Repository {
     }
 
     private static List<String> getUnstagedFiles() {
-        List<String> res = unstagedFilesfromMap(getStagedArea().getStagedToAdd());
+        List<String> res = unstagedFilesfromMap(getStagedArea(INDEX).getStagedToAdd());
         for (String entry: unstagedFilesfromMap(getCurrCommit().getBlobs())) {
             String[] tempParts = entry.split(Pattern.quote(" "));
             String filePath = tempParts[0];
-            if (!getStagedArea().getStagedToRemove().containsKey(filePath)
-                    && !getStagedArea().getStagedToAdd().containsKey(filePath)) {
+            if (!getStagedArea(INDEX).getStagedToRemove().containsKey(filePath)
+                    && !getStagedArea(INDEX).getStagedToAdd().containsKey(filePath)) {
                 res.add(filePath + " " + tempParts[1]);
             }
         }
@@ -380,7 +386,7 @@ public class Repository {
     }
 
     private static void checkCommitExistwithID(String id) {
-        if (!getObjectFilebyID(id).exists()) {
+        if (!getObjectFilebyID(id, Repository.OBJECT_DIR).exists()) {
             System.out.println("No commit with that id exists.");
             System.exit(0);
         }
@@ -393,29 +399,30 @@ public class Repository {
     public static void checkoutToCommitsFile(String id, String fileName) {
         File f = join(CWD, fileName);
         checkCommitExistwithID(id);
-        Commit c = getObjectbyID(id, Commit.class);
+        Commit c = getObjectbyID(id, Commit.class, OBJECT_DIR);
         checkFileExistInCommit(f, c);
 
         rewriteContentforCheckoutToFile(c, f);
     }
 
     private static void rewriteContentforCheckoutToFile(Commit c, File f) {
-        Blob oldBlob = getObjectbyID(getBlobIDbyFile(c, f), Blob.class);
+        Blob oldBlob = getObjectbyID(getBlobIDbyFile(c, f), Blob.class, OBJECT_DIR);
         writeContents(f, oldBlob.getContent());
     }
 
     public static void checkoutToBranch(String branchName) {
-        File branch = join(HEADS_DIR, branchName);
+        String safeBranchName = branchName.replace("/", "_");
+        File branch = join(HEADS_DIR, safeBranchName);
         checkFileExist(branch, "checkout-branch");
-        checkBranchiscurrBranch(branchName, "checkout");
+        checkBranchiscurrBranch(safeBranchName, "checkout");
 
         String id = readContentsAsString(branch);
-        Commit c = getObjectbyID(id, Commit.class);
-        checkPossibleRewritesToUntrackedFile(c);
+        Commit c = getObjectbyID(id, Commit.class, OBJECT_DIR);
+        checkPossibleRewritesToUntrackedFile(c, GITLET_DIR);
 
         changeToCommit(c);
-        changeBranchTo(branchName);
-        clearStagedArea();
+        changeBranchTo(safeBranchName);
+        clearStagedArea(INDEX);
     }
 
     private static void changeToCommit(Commit c) {
@@ -431,11 +438,13 @@ public class Repository {
     }
 
     private static void changeBranchTo(String branchName) {
-        writeContents(HEAD, branchName);
+        writeContents(HEAD, branchName.replace("/", "_"));
     }
 
-    private static void checkPossibleRewritesToUntrackedFile(Commit c) {
-        for (File f: CWD.listFiles()) {
+    private static void checkPossibleRewritesToUntrackedFile(Commit c, File gitletDir) {
+        File tempCwd = gitletDir.getParentFile();
+
+        for (File f: tempCwd.listFiles()) {
             if (c.getBlobs().containsKey(f.getPath())
                     && !getCurrCommit().getBlobs().containsKey(f.getPath())) {
                 String m1 = "There is an untracked file in the way; ";
@@ -473,6 +482,7 @@ public class Repository {
     }
 
     public static void createNewBranch(String branchName) {
+        String safeBranchName = branchName.replace("/", "_");
         File newBranch = join(HEADS_DIR, branchName);
         branchAlrExist(newBranch);
         writeContents(newBranch, getCurrCommitID());
@@ -486,36 +496,44 @@ public class Repository {
     }
 
     public static void removeBranch(String branchName) {
-        File branch = join(HEADS_DIR, branchName);
+        String safeBranchName = branchName.replace("/", "_");
+        File branch = join(HEADS_DIR, safeBranchName);
         checkFileExist(branch, "rm-branch");
-        checkBranchiscurrBranch(branchName, "rm-branch");
+        checkBranchiscurrBranch(safeBranchName, "rm-branch");
         branch.delete();
     }
 
-    public static void resetToCommit(String commitID) {
-        Commit c = getObjectbyID(commitID, Commit.class);
-        checkPossibleRewritesToUntrackedFile(c);
+    public static void resetToCommit(String commitID, File gitletDir) {
+        File tempObjectDir = join(gitletDir, "objects");
+        File tempHead = join(gitletDir, "head");
+
+        Commit c = getObjectbyID(commitID, Commit.class, tempObjectDir);
+        checkPossibleRewritesToUntrackedFile(c, gitletDir);
 
         changeToCommit(c);
-        changeBranchHeadToGivenCommit(readContentsAsString(HEAD), commitID);
-        clearStagedArea();
+        changeBranchHeadToGivenCommit(readContentsAsString(tempHead), commitID,
+                join(gitletDir, "refs", "heads"));
+        clearStagedArea(join(gitletDir, "index"));
     }
 
-    private static void changeBranchHeadToGivenCommit(String branch, String commitID) {
-        writeContents(join(HEADS_DIR, branch), commitID);
+    private static void changeBranchHeadToGivenCommit(String branch,
+                                                      String commitID, File Heads) {
+        writeContents(join(Heads, branch), commitID);
     }
 
     public static void mergeToBranch(String branchName) {
+        String safeBranchName = branchName.replace("/", "_");
         checkUncommitedChanges();
-        File tbranch = join(HEADS_DIR, branchName);
+        File tbranch = join(HEADS_DIR, safeBranchName);
         checkFileExist(tbranch, "merge");
-        checkBranchiscurrBranch(branchName, "merge");
-        Commit mCommit = getObjectbyID(readContentsAsString(tbranch), Commit.class);
-        checkPossibleRewritesToUntrackedFile(mCommit);
+        checkBranchiscurrBranch(safeBranchName, "merge");
+        String tbranchId = readContentsAsString(tbranch);
+        Commit mCommit = getObjectbyID(tbranchId, Commit.class, OBJECT_DIR);
+        checkPossibleRewritesToUntrackedFile(mCommit, GITLET_DIR);
 
         Commit splitPoint = findSplitPoint(mCommit);
         // if the split point is the same commit as the given branch / current branch
-        fastMerge(splitPoint, mCommit, branchName);
+        fastMerge(splitPoint, mCommit, safeBranchName);
         // else, continue with the conflict merge
 
         // loop through splitpoint files
@@ -547,16 +565,17 @@ public class Repository {
                                                 splitPoint.getBlobs().get(mKey))).size() == 3)
             ) {
                 // 1-2 situation when both have same file and file contents have conflicts
-                Blob currBranchVersion = getObjectbyID(cCommit.getBlobs().get(mKey), Blob.class);
+                String cBlobId = cCommit.getBlobs().get(mKey);
+                Blob currBranchVersion = getObjectbyID(cBlobId, Blob.class, OBJECT_DIR);
                 String currFileContent = convertBytesToString(currBranchVersion.getContent());
-                Blob mBranchVersion = getObjectbyID(entry.getValue(), Blob.class);
+                Blob mBranchVersion = getObjectbyID(entry.getValue(), Blob.class, OBJECT_DIR);
                 String mFileContent = convertBytesToString(mBranchVersion.getContent());
                 mergeConflictFilesContent(currFileContent, mFileContent, mKey);
             } else if (!cCommit.getBlobs().containsKey(mKey)
                         && splitPoint.getBlobs().containsKey(mKey)
                         && !entry.getValue().equals(splitPoint.getBlobs().get(mKey))) {
                 // only given branch has this file but this was originally in splitpoint
-                Blob mBranchVersion = getObjectbyID(entry.getValue(), Blob.class);
+                Blob mBranchVersion = getObjectbyID(entry.getValue(), Blob.class, OBJECT_DIR);
                 String mFileContent = convertBytesToString(mBranchVersion.getContent());
                 mergeConflictFilesContent("", mFileContent, mKey);
             }
@@ -572,7 +591,7 @@ public class Repository {
                     } else {
                         // 2-2 situation: conflict also, but only exist in currBranch
                         String id = cCommit.getBlobs().get(key);
-                        Blob currBranchVersion = getObjectbyID(id, Blob.class);
+                        Blob currBranchVersion = getObjectbyID(id, Blob.class, OBJECT_DIR);
                         byte[] c = currBranchVersion.getContent();
                         String currFileContent = convertBytesToString(c);
                         mergeConflictFilesContent(currFileContent, "", key);
@@ -597,6 +616,7 @@ public class Repository {
         addToStage(getFileNameFromPath(filePath));
         System.out.println("Encountered a merge conflict.");
     }
+
     private static void fastMerge(Commit splitPoint, Commit mCommit, String branchName) {
         if (splitPoint.getCommitID().equals(mCommit.getCommitID())) {
             System.out.println("Given branch is an ancestor of the current branch.");
@@ -609,7 +629,7 @@ public class Repository {
     }
 
     private static Commit findSplitPoint(Commit mCommit) {
-        HashMap<String, Integer> ancestorsWithDepth = listOfCommitsWithDepth(getCurrCommit());
+        HashMap<String, Integer> ancestorsWithDepth = listOfCommitsWithDepth(getCurrCommit(), OBJECT_DIR);
         ArrayList<String> level = new ArrayList<>();
         level.add(mCommit.getCommitID());
         while (!level.isEmpty()) {
@@ -619,20 +639,21 @@ public class Repository {
                 if (ancestorsWithDepth.containsKey(id)) {
                     tempRes.put(ancestorsWithDepth.get(id), id);
                 } else {
-                    newLevel.addAll(getObjectbyID(id, Commit.class).getParents());
+                    Commit tempC = getObjectbyID(id, Commit.class, OBJECT_DIR);
+                    newLevel.addAll(tempC.getParents());
                 }
             }
             if (!tempRes.isEmpty()) {
                 Integer minKey = Collections.min(tempRes.keySet());
                 String id = tempRes.get(minKey);
-                return getObjectbyID(id, Commit.class);
+                return getObjectbyID(id, Commit.class, OBJECT_DIR);
             }
             level = newLevel;
         }
         return new Commit(); // will not be incur; to fulfill Java compiling requirements
     }
 
-    private static HashMap<String, Integer> listOfCommitsWithDepth(Commit c) {
+    private static HashMap<String, Integer> listOfCommitsWithDepth(Commit c, File objectDir) {
         HashMap<String, Integer> res = new HashMap<>();
         Queue<Object[]> q = new LinkedList<>();
         Object[] initPair = new Object[2];
@@ -645,7 +666,7 @@ public class Repository {
             Integer lvl = (Integer) currPair[1];
             res.put(currC.getCommitID(), lvl);
             for (String id: currC.getParents()) {
-                Commit p = getObjectbyID(id, Commit.class);
+                Commit p = getObjectbyID(id, Commit.class, objectDir);
                 Object[] newPair = new Object[2];
                 newPair[0] = p;
                 newPair[1] = lvl + 1;
@@ -656,8 +677,8 @@ public class Repository {
     }
 
     private static void checkUncommitedChanges() {
-        if (!getStagedArea().getStagedToRemove().isEmpty()
-                || !getStagedArea().getStagedToAdd().isEmpty()) {
+        if (!getStagedArea(INDEX).getStagedToRemove().isEmpty()
+                || !getStagedArea(INDEX).getStagedToAdd().isEmpty()) {
             System.out.println("You have uncommitted changes.");
             System.exit(0);
         }
@@ -690,17 +711,20 @@ public class Repository {
     }
 
     public static void push(String remoteName, String remoteBranch) {
+        // use safe branch name due to settings of UNIX system
+        String safeRemoteBranch = remoteBranch.replace("/", "_");
         // read remote object and check if we have this remote .gitlet dir
         File remoteFile = join(GITLET_DIR, "remote");
         Remote remote = readObject(remoteFile, Remote.class);
-        if (!remote.remoteMap.containsKey(remoteName)) {
+        File remoteDir = remote.remoteMap.get(remoteName);
+        if (!remoteDir.exists()) {
             System.out.println("Remote directory not found.");
             System.exit(0);
         }
 
         // get targetId i.e. head at the remote specific branch
-        File remoteDir = remote.remoteMap.get(remoteName);
-        File targetFile = join(remoteDir, "refs", "heads", remoteBranch);
+        File remoteObjects = join(remoteDir, "objects");
+        File targetFile = join(remoteDir, "refs", "heads", safeRemoteBranch);
         String targetId = readContentsAsString(targetFile);
         if (!findHistoricCommit(getCurrCommitID(), targetId)) {
             System.out.println("Please pull down remote changes before pushing.");
@@ -708,17 +732,16 @@ public class Repository {
         }
 
         // append future commits
-        Commit targetCommit = getObjectbyID(targetId, Commit.class);
-        Set<String> commitIdSet = listOfCommitsWithDepth(targetCommit).keySet();
+        Commit targetCommit = getObjectbyID(targetId, Commit.class, remoteObjects);
+        Set<String> commitIdSet = listOfCommitsWithDepth(targetCommit, remoteObjects).keySet();
         Queue<String> queue = new LinkedList<>();
         queue.add(getCurrCommitID());
         HashSet<String> blobIdSet = new HashSet<>();
         while (!queue.isEmpty()) {
             String tempCommitId = queue.remove();
             if (!commitIdSet.contains(tempCommitId)) {
-                File outFile = join(remoteDir, "objects",
-                        tempCommitId.substring(0,3), tempCommitId.substring(3));
-                Commit commitToWrite = getObjectbyID(tempCommitId, Commit.class);
+                File outFile = getObjectFilebyID(tempCommitId, remoteObjects);
+                Commit commitToWrite = getObjectbyID(tempCommitId, Commit.class, OBJECT_DIR);
                 writeObject(outFile, commitToWrite);
                 blobIdSet.addAll(commitToWrite.getBlobs().values());
                 queue.addAll(commitToWrite.getParents());
@@ -727,11 +750,13 @@ public class Repository {
 
         for (String blobId: blobIdSet) {
             if (!objectExistence(blobId, OBJECT_DIR)) {
-                File outFile = getObjectFilebyID(blobId);
-                writeObject(outFile, getObjectbyID(blobId, Blob.class));
+                File outFile = getObjectFilebyID(blobId, remoteObjects);
+                Blob outBlob = getObjectbyID(blobId, Blob.class, OBJECT_DIR);
+                writeObject(outFile, outBlob);
             }
         }
 
+        resetToCommit(getCurrCommitID(), remoteDir);
     }
 
     public static boolean findHistoricCommit(String startCommitID, String targetId) {
@@ -742,31 +767,31 @@ public class Repository {
             if (tempCommitID.equals(targetId)) {
                 return true;
             }
-            Commit tempCommit = getObjectbyID(tempCommitID, Commit.class);
+            Commit tempCommit = getObjectbyID(tempCommitID, Commit.class, OBJECT_DIR);
             queue.addAll(tempCommit.getParents());
         }
         return false;
     }
 
     public static void pull(String remoteName, String remoteBranch) {
-        fetch(remoteName, remoteBranch);
-        mergeToBranch(remoteName + "/" + remoteBranch);
+        String safeRemoteBranch = remoteBranch.replace("/", "_");
+        fetch(remoteName, safeRemoteBranch);
+        mergeToBranch(remoteName + "/" + safeRemoteBranch);
     }
 
     public static void fetch(String remoteName, String remoteBranch) {
+        String safeRemoteBranch = remoteBranch.replace("/", "_");
         File remoteFile = join(GITLET_DIR, "remote");
         Remote remote = readObject(remoteFile, Remote.class);
-
-        if (!remote.remoteMap.containsKey(remoteName)) {
+        File toCopy = remote.remoteMap.get(remoteName);
+        if (!toCopy.exists()) {
             System.out.println("Remote directory not found.");
             System.exit(0);
         }
 
         // get the branch file under heads_dir in remote dir
-        File toCopy = remote.remoteMap.get(remoteName);
-        File startFile = new File(toCopy.getPath() + File.separator + "refs"
-                + File.separator + "heads" + File.separator + remoteBranch);
-
+        File remoteObjects = join(toCopy, "objects");
+        File startFile = join(toCopy, "refs", "heads", safeRemoteBranch);
         if (!startFile.exists()) {
             System.out.println("That remote does not have that branch.");
             System.exit(0);
@@ -774,8 +799,9 @@ public class Repository {
         String startCommitID = readContentsAsString(startFile);
 
         // create the new branch and change the head to the new branch
-        createNewBranch(remoteName + "/" + remoteBranch);
-        File newBranch = join(HEADS_DIR, remoteName + "/" + remoteBranch);
+        File newBranch = join(HEADS_DIR, remoteName + "_" + safeRemoteBranch);
+        if (newBranch.exists()) { newBranch.delete(); }
+        createNewBranch(remoteName + "_" + safeRemoteBranch);
         writeContents(newBranch, startCommitID);
 
         // copy all the commits / blobs from startCommit to the current .gitlet dir
@@ -784,11 +810,12 @@ public class Repository {
         HashSet<String> blobIdSet = new HashSet<>();
         while (!queue.isEmpty()) {
             String tempCommitID = queue.remove();
-            Commit tempCommit = getObjectbyID(tempCommitID, Commit.class);
+            Commit tempCommit = getObjectbyID(tempCommitID, Commit.class, remoteObjects);
 
-            // write the object not in curr repo to the .gitlet folder
+            // write the remote object not in curr repo to the current .gitlet folder
             if (!objectExistence(tempCommitID, OBJECT_DIR)) {
-                File outFile = getObjectFilebyID(tempCommitID);
+                File outFile = getObjectFilebyID(tempCommitID, OBJECT_DIR);
+                updateBlobsFilePath(tempCommit, remoteObjects);
                 writeObject(outFile, tempCommit);
             }
 
@@ -802,11 +829,30 @@ public class Repository {
 
         for (String blobId: blobIdSet) {
             if (!objectExistence(blobId, OBJECT_DIR)) {
-                File outFile = getObjectFilebyID(blobId);
-                writeObject(outFile, getObjectbyID(blobId, Blob.class));
+                File outFile = getObjectFilebyID(blobId, OBJECT_DIR);
+                Blob outBlob = getObjectbyID(blobId, Blob.class, remoteObjects);
+                writeObject(outFile, outBlob);
             }
         }
+    }
 
+    // update the blobs file path when removing commit from remote to current
+    public static void updateBlobsFilePath(Commit c, File objectsDir) {
+        HashMap<String, String> updatedBlobs = new HashMap<>();
+        for (Map.Entry<String, String> entry: c.getBlobs().entrySet()) {
+            String tempPath = entry.getKey();
+            String tempBlobId = entry.getValue();
+            String tempFileName = getFileNameFromPath(tempPath);
+            File updatedFile = join(CWD, tempFileName);
+
+            // update for blob object
+            Blob tempBlob = getObjectbyID(tempBlobId, Blob.class, objectsDir);
+            tempBlob.updateBlob(updatedFile);
+
+            // update for commit blobs map
+            updatedBlobs.put(updatedFile.getPath(), tempBlobId);
+        }
+        c.updateBlobs(updatedBlobs);
     }
 
 }

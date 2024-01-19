@@ -79,7 +79,7 @@ public class Main {
                 break;
             case "reset":
                 validateNumArgs("reset", args, 2);
-                Repository.resetToCommit(args[1]);
+                Repository.resetToCommit(args[1], GITLET_DIR);
                 break;
             case "merge":
                 validateNumArgs("merge", args, 2);
@@ -90,21 +90,25 @@ public class Main {
                 Repository.test(args[1]);
                 break;
             case "add-remote":
-                validateNumArgs("add-remote", args, 2);
-                int endIndex = args[1].length()-8;
-                Repository.addRemote(args[0], args[1].substring(0, endIndex));
+                validateNumArgs("add-remote", args, 3);
+                Repository.addRemote(args[1], args[2]);
+                break;
             case "rm-remote":
-                validateNumArgs("rm-remote", args, 1);
-                Repository.rmRemote(args[0]);
+                validateNumArgs("rm-remote", args, 2);
+                Repository.rmRemote(args[1]);
+                break;
             case "push":
-                validateNumArgs("push", args, 2);
-                Repository.push(args[0], args[1]);
+                validateNumArgs("push", args, 3);
+                Repository.push(args[1], args[2]);
+                break;
             case "pull":
-                validateNumArgs("pull", args, 2);
-                Repository.pull(args[0], args[1]);
+                validateNumArgs("pull", args, 3);
+                Repository.pull(args[1], args[2]);
+                break;
             case "fetch":
-                validateNumArgs("fetch", args, 2);
-                Repository.fetch(args[0], args[1]);
+                validateNumArgs("fetch", args, 3);
+                Repository.fetch(args[1], args[2]);
+                break;
             default:
                 System.out.println("No command with that name exists");
                 break;
@@ -119,7 +123,7 @@ public class Main {
             checkFolderExistence();
         }
         if (cmd.equals("add-remote")) {
-            if (!args[1].endsWith("/.gitlet")) {
+            if (!args[2].endsWith("/.gitlet")) {
                 System.out.println("Invalid server repository name.");
                 System.exit(0);
             }

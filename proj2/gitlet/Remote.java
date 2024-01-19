@@ -11,6 +11,9 @@ import static gitlet.MyUtils.*;
 public class Remote implements Serializable {
     HashMap<String, File> remoteMap;
 
+    public Remote() {
+        this.remoteMap = new HashMap<>();
+    }
     public Remote(HashMap<String, File> remoteMap) {
         this.remoteMap = remoteMap;
     }
@@ -28,14 +31,6 @@ public class Remote implements Serializable {
 
     public void rmRemote(String remoteName) {
         remoteMap.remove(remoteName);
-    }
-
-    public void fetch(String remoteName, String remoteBranch) {
-
-    }
-
-    private void copyObjects(File source, File dest) {
-
     }
 
 }
