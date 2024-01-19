@@ -442,7 +442,9 @@ public class Repository {
     }
 
     private static void checkPossibleRewritesToUntrackedFile(Commit c, File gitletDir) {
-        File tempCwd = gitletDir.getParentFile();
+        int tempLength = gitletDir.getPath().length();
+        String parentPath = gitletDir.getPath().substring(0, tempLength-8);
+        File tempCwd = new File(parentPath);
 
         for (File f: tempCwd.listFiles()) {
             if (c.getBlobs().containsKey(f.getPath())
